@@ -19,8 +19,7 @@ class CartSession extends Model
         'user_id',
         'product_id',
         'quantity',
-        'size',
-        'color',
+        'variant_info',
     ];
 
     /**

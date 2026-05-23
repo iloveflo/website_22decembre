@@ -39,6 +39,7 @@ import QuanLySanPham from '../views/admin/quanlysanpham.vue'
 import QuanLyDonHang from '../views/admin/quanlydonhang.vue'
 import ThongKeBaoCao from '../views/admin/thongkebaocao.vue'
 import QuanLyKhuyenMai from '../views/admin/quanlykhuyenmai.vue'
+import QuanLyDanhMuc from '../views/admin/quanlydanhmuc.vue'
 
 const routes = [
   {
@@ -142,6 +143,8 @@ const routes = [
         component : OrderDetail,
       },
 
+
+
       // Review
       {
           path: '/reviews/:order_code', 
@@ -167,9 +170,12 @@ const routes = [
       { path: 'quan-ly-don-hang', component: QuanLyDonHang },
       { path: 'thong-ke-bao-cao', component: ThongKeBaoCao },
       { path: 'quan-ly-khuyen-mai', component: QuanLyKhuyenMai },
+      { path: 'quan-ly-danh-muc', component: QuanLyDanhMuc },
     ],
   },
 ]
+
+
 
 const router = createRouter({
   history: createWebHistory(),
@@ -178,6 +184,39 @@ const router = createRouter({
     if (savedPosition) return savedPosition
     return { top: 0 }
   }
+})
+
+
+// Navigation Guard
+router.beforeEach(async (to, from, next) => {
+  const token = localStorage.getItem('token')
+  
+  // Xác định các route cần đăng nhập
+  // Admin luôn cần đăng nhập. User profile/orders cần đăng nhập. 
+  // Riêng user/cart, user/orders, user/order cho phép khách vãng lai.
+  const isExcluded = to.path === '/user/cart' || to.path === '/cart' || 
+                     to.path.startsWith('/user/orders') || 
+                     to.path.startsWith('/user/order')
+  const requiresAuth = to.matched.some(record => {
+    const path = record.path
+    if (path.startsWith('/admin')) return true
+    if (path.startsWith('/user') && !isExcluded) return true
+    return false
+  })
+
+  if (requiresAuth && !token) {
+    return next('/login')
+  }
+
+  // Phân quyền cho quản lý danh mục (Cho phép cả Admin và Staff)
+  if (to.path === '/admin/quan-ly-danh-muc') {
+    const role = localStorage.getItem('user_role')
+    if (role !== 'staff' && role !== 'admin') {
+      return next('/admin')
+    }
+  }
+
+  next()
 })
 
 export default router

@@ -1,272 +1,396 @@
 <template>
-  <transition name="bounce">
-    <div v-if="isVisible && coupon" class="popup-overlay">
+  <Transition name="bounce">
+    <div v-if="isVisible && coupons.length" class="popup-overlay" @click.self="closePopup">
       <div class="popup-content">
-        
-        <button class="btn-close-popup" @click="closePopup">✕</button>
 
-        <div class="popup-body text-center">
-          <div class="sale-badge">FLASH SALE</div>
-          
-          <h2 class="popup-title">NHẬN ƯU ĐÃI NGAY</h2>
-          
-          <p class="popup-desc">
-            {{ coupon.description || 'Chương trình khuyến mại đặc biệt dành riêng cho bạn.' }}
-          </p>
+        <button class="btn-close-popup" @click="closePopup" aria-label="Đóng">✕</button>
 
-          <div class="voucher-container">
+        <!-- Header -->
+        <div class="popup-header">
+          <span class="sale-badge">KHUYẾN MÃI HOT</span>
+          <h2 class="popup-title">ƯU ĐÃI DÀNH CHO BẠN</h2>
+          <p class="popup-subtitle">Sao chép mã và dùng ngay tại giỏ hàng</p>
+        </div>
+
+        <!-- Coupon Carousel -->
+        <div class="carousel-wrap">
+          <button class="nav-btn prev" @click="prev" v-if="coupons.length > 1">‹</button>
+
+          <div class="voucher-ticket">
             <div class="voucher-left">
               <span class="discount-amount">
-                {{ coupon.discount_type === 'percent' ? `-${coupon.discount_value}%` : formatCurrency(coupon.discount_value) }}
+                {{ activeCoupon.discount_type === 'percent'
+                    ? `-${activeCoupon.discount_value}%`
+                    : formatCurrency(activeCoupon.discount_value) }}
               </span>
               <span class="discount-label">GIẢM GIÁ</span>
+              <span v-if="activeCoupon.max_discount > 0" class="discount-max">
+                Tối đa {{ formatCurrency(activeCoupon.max_discount) }}
+              </span>
             </div>
-            
+
             <div class="voucher-dash"></div>
 
-            <div class="voucher-right" @click="copyCode">
-              <span class="code-label">MÃ CODE:</span>
-              <span class="code-text">{{ coupon.code }}</span>
-              <span class="tap-copy" v-if="!copied">(Chạm để sao chép)</span>
-              <span class="tap-copy text-success" v-else>ĐÃ SAO CHÉP!</span>
+            <div class="voucher-right">
+              <p class="coupon-desc">{{ activeCoupon.description }}</p>
+
+              <div class="code-box" @click="copyCode" :class="{ copied }">
+                <span class="code-label">MÃ CODE</span>
+                <span class="code-text">{{ activeCoupon.code }}</span>
+                <span class="copy-hint">{{ copied ? '✓ Đã sao chép!' : 'Nhấn để sao chép' }}</span>
+              </div>
+
+              <div class="coupon-conditions">
+                <span v-if="activeCoupon.min_order_value > 0">
+                  Đơn tối thiểu {{ formatCurrency(activeCoupon.min_order_value) }}
+                </span>
+                <span v-if="activeCoupon.end_date">
+                  · Hết hạn {{ formatDate(activeCoupon.end_date) }}
+                </span>
+                <span v-if="activeCoupon.usage_limit > 0" class="usage-left">
+                  · Còn {{ activeCoupon.usage_limit - activeCoupon.used_count }} lượt
+                </span>
+              </div>
             </div>
           </div>
 
-          <div class="expiry-info" v-if="coupon.end_date">
-             Hết hạn: {{ formatDate(coupon.end_date) }}
-          </div>
-
-          <button class="btn-action" @click="closePopup">
-            MUA SẮM NGAY
-          </button>
+          <button class="nav-btn next" @click="next" v-if="coupons.length > 1">›</button>
         </div>
+
+        <!-- Dots -->
+        <div class="dots" v-if="coupons.length > 1">
+          <span
+            v-for="(_, i) in coupons"
+            :key="i"
+            class="dot"
+            :class="{ active: i === currentIndex }"
+            @click="currentIndex = i"
+          ></span>
+        </div>
+
+        <!-- Thông tin nhận mã -->
+        <div class="how-to-get">
+          <p class="how-title">Làm thế nào để nhận mã?</p>
+          <ul>
+            <li>Mã <strong>công khai</strong> — tất cả khách hàng đều có thể dùng</li>
+            <li>Mã <strong>cá nhân</strong> — được tặng qua email sau khi đặt hàng thành công, nhân dịp sinh nhật hoặc sự kiện VIP</li>
+            <li>Mỗi mã chỉ dùng <strong>1 lần duy nhất</strong> trên mỗi tài khoản</li>
+          </ul>
+        </div>
+
+        <button class="btn-action" @click="goShop">
+          MUA SẮM NGAY
+        </button>
+
       </div>
     </div>
-  </transition>
+  </Transition>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, computed, onMounted } from 'vue';
+import { useRouter } from 'vue-router';
 import axios from 'axios';
 
-// --- STATE ---
+const router = useRouter();
+
 const isVisible = ref(false);
-const coupon = ref(null); // Lưu dữ liệu coupon lấy từ API
+const coupons = ref([]);
+const currentIndex = ref(0);
 const copied = ref(false);
 
-// --- CONFIG ---
-// Bạn nên tạo một route API public để lấy mã ngon nhất (VD: mã mới nhất active)
-const API_URL = '/api/coupons/latest-active'; 
+const activeCoupon = computed(() => coupons.value[currentIndex.value] || {});
+
+const prev = () => {
+  currentIndex.value = (currentIndex.value - 1 + coupons.value.length) % coupons.value.length;
+  copied.value = false;
+};
+const next = () => {
+  currentIndex.value = (currentIndex.value + 1) % coupons.value.length;
+  copied.value = false;
+};
 
 onMounted(async () => {
-  // 1. Check Session (để không hiện lại nếu khách đã tắt)
-  const hasSeen = sessionStorage.getItem('promo_popup_seen');
-  if (hasSeen) return;
+  if (sessionStorage.getItem('promo_popup_seen')) return;
 
-  // 2. Gọi API lấy mã khuyến mại
   try {
-    // Giả lập gọi API (Bạn thay bằng axios.get thật nhé)
-    // const res = await axios.get(API_URL);
-    // coupon.value = res.data.data;
-
-    // --- DỮ LIỆU MẪU (Xóa đoạn này khi có API thật) ---
-    coupon.value = {
-        code: 'BLACKFRIDAY2025',
-        description: 'Black Friday! Giảm giá 50% áp dụng cho mọi đơn hàng.',
-        discount_type: 'percent',
-        discount_value: 50,
-        end_date: '2025-12-31 23:59:00'
-    };
-    // --------------------------------------------------
-
-    // Nếu có coupon thì mới hiện Popup
-    if (coupon.value) {
-        setTimeout(() => { isVisible.value = true; }, 1000);
+    const res = await axios.get('/coupons/featured');
+    if (res.data.status === 'success' && res.data.data.length > 0) {
+      coupons.value = res.data.data;
+      setTimeout(() => { isVisible.value = true; }, 1200);
     }
-
-  } catch (error) {
-    console.error("Lỗi lấy khuyến mại:", error);
+  } catch (e) {
+    console.error('Lỗi tải mã khuyến mãi:', e);
   }
 });
 
-// --- METHODS ---
 const closePopup = () => {
   isVisible.value = false;
   sessionStorage.setItem('promo_popup_seen', 'true');
 };
 
 const copyCode = () => {
-  if(!coupon.value) return;
-  navigator.clipboard.writeText(coupon.value.code);
+  if (!activeCoupon.value.code) return;
+  navigator.clipboard.writeText(activeCoupon.value.code);
   copied.value = true;
-  setTimeout(() => { copied.value = false; }, 2000);
+  setTimeout(() => { copied.value = false; }, 2200);
 };
 
-// Helper Format
-const formatCurrency = (value) => {
-    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value);
+const goShop = () => {
+  closePopup();
+  router.push('/products');
 };
-const formatDate = (dateString) => {
-    if (!dateString) return '';
-    return new Date(dateString).toLocaleDateString('vi-VN');
+
+const formatCurrency = (v) =>
+  new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(v);
+
+const formatDate = (d) => {
+  if (!d) return '';
+  return new Date(d).toLocaleDateString('vi-VN');
 };
 </script>
 
 <style scoped>
-/* FONT */
 @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Work+Sans:wght@700;900&display=swap');
 
-/* OVERLAY */
+/* ── Overlay ── */
 .popup-overlay {
-  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-  background: rgba(0, 0, 0, 0.6); /* Nền tối để tập trung vào Voucher */
-  backdrop-filter: blur(8px);
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.65);
+  backdrop-filter: blur(6px);
   z-index: 9999;
-  display: flex; justify-content: center; align-items: center;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
 }
 
-/* CONTENT BOX */
+/* ── Card ── */
 .popup-content {
   position: relative;
   background: #fff;
-  width: 95%; max-width: 450px;
-  border: 4px solid #000;
-  box-shadow: 12px 12px 0px #000; /* Brutalist Shadow */
-  padding: 0; /* Padding xử lý bên trong */
+  width: 100%;
+  max-width: 460px;
+  border: 3px solid #111;
+  box-shadow: 10px 10px 0 #111;
   overflow: hidden;
 }
 
-/* HEADER STYLE */
-.sale-badge {
-  background: #000; color: #fff;
-  display: inline-block;
-  padding: 5px 15px;
-  font-family: 'Space Mono', monospace;
-  font-weight: bold;
-  margin-top: 2rem;
-  transform: rotate(-3deg);
-}
-
-.popup-title {
-  font-family: 'Work Sans', sans-serif;
-  font-size: 2.2rem;
-  font-weight: 900;
-  text-transform: uppercase;
-  margin: 10px 0;
+/* ── Close ── */
+.btn-close-popup {
+  position: absolute; top: 10px; right: 12px;
+  background: transparent; border: none;
+  font-size: 1.4rem; cursor: pointer;
+  z-index: 10; color: #555;
   line-height: 1;
 }
+.btn-close-popup:hover { color: #111; }
 
-.popup-desc {
+/* ── Header ── */
+.popup-header {
+  background: #111;
+  color: #fff;
+  text-align: center;
+  padding: 20px 24px 16px;
+}
+.sale-badge {
+  display: inline-block;
+  background: #A08B7A;
+  color: #fff;
   font-family: 'Space Mono', monospace;
-  font-size: 0.9rem;
-  padding: 0 20px;
-  color: #555;
-  margin-bottom: 1.5rem;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 12px;
+  letter-spacing: 2px;
+  margin-bottom: 8px;
+}
+.popup-title {
+  font-family: 'Work Sans', sans-serif;
+  font-size: 1.7rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  margin: 0 0 4px;
+  line-height: 1.1;
+}
+.popup-subtitle {
+  font-size: 12px;
+  color: rgba(255,255,255,0.7);
+  margin: 0;
+  font-family: 'Space Mono', monospace;
 }
 
-/* VOUCHER TICKET DESIGN */
-.voucher-container {
+/* ── Carousel wrap ── */
+.carousel-wrap {
   display: flex;
-  margin: 0 1.5rem;
-  border: 2px solid #000;
-  background: #f4f4f4;
-  position: relative;
-  cursor: pointer;
-  transition: transform 0.1s;
+  align-items: center;
+  gap: 4px;
+  padding: 16px 8px 0;
 }
-.voucher-container:active {
-  transform: scale(0.98);
+
+.nav-btn {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border: 2px solid #E6E0D8;
+  background: #fff;
+  border-radius: 50%;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  color: #555;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.2s;
+}
+.nav-btn:hover { border-color: #A08B7A; color: #A08B7A; }
+
+/* ── Voucher ticket ── */
+.voucher-ticket {
+  flex: 1;
+  display: flex;
+  border: 2px solid #E6E0D8;
+  min-height: 110px;
+  overflow: hidden;
+  border-radius: 4px;
 }
 
 .voucher-left {
-  background: #000;
+  background: #A08B7A;
   color: #fff;
-  padding: 15px;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  min-width: 100px;
+  padding: 14px 12px;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  min-width: 90px;
+  text-align: center;
 }
 .discount-amount {
   font-family: 'Work Sans', sans-serif;
-  font-size: 1.8rem;
-  font-weight: 900;
+  font-size: 1.7rem; font-weight: 900;
+  line-height: 1;
 }
-.discount-label { font-size: 0.7rem; letter-spacing: 1px; }
+.discount-label { font-size: 9px; letter-spacing: 1.5px; margin-top: 3px; opacity: 0.85; }
+.discount-max { font-size: 9px; opacity: 0.75; margin-top: 3px; text-align: center; }
 
-/* Đường cắt voucher (Dashed line) */
 .voucher-dash {
   width: 0;
-  border-left: 2px dashed #000;
+  border-left: 2px dashed #ccc;
   position: relative;
+  flex-shrink: 0;
 }
-/* Tạo hình bán nguyệt ở đường cắt (Optional - nâng cao) */
 .voucher-dash::before, .voucher-dash::after {
-  content: ''; position: absolute; left: -6px; width: 12px; height: 12px;
-  background: #fff; border-radius: 50%; border: 2px solid #000;
+  content: ''; position: absolute; left: -7px;
+  width: 13px; height: 13px;
+  background: #fff; border-radius: 50%;
+  border: 2px solid #E6E0D8;
 }
-.voucher-dash::before { top: -8px; }
-.voucher-dash::after { bottom: -8px; }
+.voucher-dash::before { top: -7px; }
+.voucher-dash::after { bottom: -7px; }
 
 .voucher-right {
   flex: 1;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  padding: 10px;
+  padding: 10px 12px;
+  display: flex; flex-direction: column; gap: 6px;
 }
-.code-label { font-size: 0.7rem; font-weight: bold; color: #777; }
+
+.coupon-desc {
+  font-size: 11.5px;
+  color: #444;
+  margin: 0;
+  line-height: 1.4;
+}
+
+/* Code box */
+.code-box {
+  display: flex; flex-direction: column; align-items: flex-start;
+  background: #f5f1ee;
+  border: 1.5px dashed #A08B7A;
+  border-radius: 4px;
+  padding: 6px 10px;
+  cursor: pointer;
+  transition: background 0.2s;
+  user-select: none;
+}
+.code-box:hover, .code-box.copied { background: #ede9e4; }
+.code-label { font-size: 9px; font-weight: 700; color: #999; letter-spacing: 1px; }
 .code-text {
   font-family: 'Space Mono', monospace;
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: #000;
-  letter-spacing: 1px;
+  font-size: 1.1rem; font-weight: 700;
+  color: #333; letter-spacing: 1.5px;
+  line-height: 1.2;
 }
-.tap-copy { font-size: 0.65rem; color: #888; margin-top: 4px; }
-.text-success { color: #000 !important; font-weight: bold; background: #fff; padding: 2px; }
+.copy-hint { font-size: 9px; color: #A08B7A; font-weight: 600; }
 
-/* FOOTER */
-.expiry-info {
-  margin-top: 10px;
-  font-size: 0.75rem;
+/* Conditions */
+.coupon-conditions {
+  font-size: 10px;
+  color: #999;
+  line-height: 1.5;
+}
+.usage-left { color: #e07b39; font-weight: 700; }
+
+/* ── Dots ── */
+.dots {
+  display: flex; gap: 5px;
+  justify-content: center;
+  padding: 10px 0 0;
+}
+.dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: #ddd;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.dot.active { background: #A08B7A; }
+
+/* ── How to get ── */
+.how-to-get {
+  margin: 12px 16px 0;
+  background: #f9f7f5;
+  border: 1px solid #E6E0D8;
+  border-radius: 6px;
+  padding: 10px 14px;
+}
+.how-title {
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: #555;
+  margin: 0 0 6px;
+}
+.how-to-get ul {
+  margin: 0; padding: 0 0 0 16px;
+  list-style: disc;
+}
+.how-to-get li {
+  font-size: 11px;
   color: #666;
-  font-style: italic;
+  line-height: 1.6;
 }
 
+/* ── CTA Button ── */
 .btn-action {
-  width: 100%;
-  background: #000;
-  color: #fff;
+  display: block; width: 100%;
+  background: #111; color: #fff;
   border: none;
-  border-top: 4px solid #000;
-  padding: 1.2rem;
+  border-top: 3px solid #A08B7A;
+  padding: 14px;
+  margin-top: 14px;
   font-family: 'Work Sans', sans-serif;
   font-weight: 900;
-  font-size: 1.2rem;
+  font-size: 1rem;
   text-transform: uppercase;
-  margin-top: 1.5rem;
+  letter-spacing: 2px;
   cursor: pointer;
+  transition: background 0.2s, color 0.2s;
 }
-.btn-action:hover {
-  background: #ffff00; /* Vàng neon khi hover */
-  color: #000;
-}
+.btn-action:hover { background: #A08B7A; }
 
-.btn-close-popup {
-  position: absolute; top: 10px; right: 10px;
-  background: transparent; border: none; font-size: 1.5rem; cursor: pointer; z-index: 10;
-  font-weight: bold;
-}
-
-/* ANIMATION */
-.bounce-enter-active { animation: bounce-in 0.5s; }
-.bounce-leave-active { animation: bounce-in 0.5s reverse; }
-@keyframes bounce-in {
-  0% { transform: scale(0); opacity: 0; }
-  50% { transform: scale(1.05); }
-  100% { transform: scale(1); opacity: 1; }
+/* ── Animation ── */
+.bounce-enter-active { animation: bounceIn 0.45s cubic-bezier(0.175,0.885,0.32,1.275); }
+.bounce-leave-active { animation: bounceIn 0.3s reverse ease-in; }
+@keyframes bounceIn {
+  from { transform: scale(0.7); opacity: 0; }
+  to   { transform: scale(1);   opacity: 1; }
 }
 </style>

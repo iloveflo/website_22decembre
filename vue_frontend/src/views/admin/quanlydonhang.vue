@@ -1,5 +1,11 @@
 <template>
   <div class="p-6 bg-gray-50 min-h-screen font-sans">
+    <!-- Notification -->
+    <Transition name="fade">
+      <div v-if="notification.show" :class="['custom-notification', notification.type]">
+        {{ notification.message }}
+      </div>
+    </Transition>
     <div v-if="currentTab === 'orders'">
       <div class="bg-white p-4 rounded-lg shadow mb-6">
         <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
@@ -15,10 +21,10 @@
             <option value="cancelled">Đã hủy</option>
           </select>
           <select v-model="filters.payment_method" @change="fetchOrders" class="border p-2 rounded">
-            <option value="">Phương thức thanh toán</option>
-            <option value="cod">COD</option>
-            <option value="vnpay">VNPay</option>
-            <option value="momo">MoMo</option>
+            <option value="">Tất cả phương thức</option>
+            <option v-for="method in paymentMethods" :key="method" :value="method">
+              {{ method.toUpperCase() }}
+            </option>
           </select>
           <button @click="fetchOrders" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Lọc dữ liệu</button>
         </div>
@@ -32,7 +38,9 @@
               <th class="p-4">Khách hàng</th>
               <th class="p-4">Ngày đặt</th>
               <th class="p-4">Tổng tiền</th>
-              <th class="p-4">Trạng thái</th>
+              <th class="p-4">Phương thức</th>
+              <th class="p-4">Đơn hàng</th>
+              <th class="p-4">Thanh toán</th>
               <th class="p-4 text-center">Thao tác</th>
             </tr>
           </thead>
@@ -46,8 +54,18 @@
               <td class="p-4">{{ formatDate(order.created_at) }}</td>
               <td class="p-4 font-bold">{{ formatCurrency(order.total_amount) }}</td>
               <td class="p-4">
+                <span class="text-xs font-bold uppercase text-gray-600 bg-gray-100 px-2 py-1 rounded border border-gray-200">
+                   {{ order.payment_method?.toUpperCase() }}
+                </span>
+              </td>
+              <td class="p-4">
                 <span :class="statusColor(order.order_status)" class="px-2 py-1 rounded-full text-xs font-semibold">
                   {{ statusText(order.order_status) }}
+                </span>
+              </td>
+              <td class="p-4">
+                <span :class="paymentStatusColor(order.payment_status)" class="px-2 py-1 rounded-full text-xs font-semibold">
+                  {{ paymentStatusText(order.payment_status) }}
                 </span>
               </td>
               <td class="p-4 text-center">
@@ -144,70 +162,111 @@
       </div>
     </div>
 
-    <div v-if="showModal && selectedOrder" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div class="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto flex flex-col">
+    <div v-if="showModal && selectedOrder" class="admin-modal-backdrop">
+      <div class="admin-modal">
         
-        <div class="flex justify-between items-center p-4 border-b bg-gray-50">
-          <h3 class="text-xl font-bold">Chi tiết đơn hàng #{{ selectedOrder.order_code }}</h3>
-          <button @click="closeModal" class="text-gray-500 hover:text-red-500 text-2xl">&times;</button>
+        <!-- Header -->
+        <div class="admin-modal-header">
+          <div>
+            <div class="modal-order-label">CHI TIẾT ĐƠN HÀNG</div>
+            <h3 class="modal-order-code">#{{ selectedOrder.order_code }}</h3>
+          </div>
+          <button @click="closeModal" class="modal-close-btn">&times;</button>
         </div>
 
-        <div class="p-6 grid grid-cols-1 md:grid-cols-3 gap-6">
+        <!-- Body -->
+        <div class="admin-modal-body">
           
-          <div class="md:col-span-2 space-y-4">
-            <h4 class="font-semibold text-gray-700 border-b pb-2">Sản phẩm</h4>
-            <div v-for="item in selectedOrder.order_items || []" :key="item.id" class="flex items-center gap-4 border p-2 rounded-lg">
-              <img :src="item.product_image_url || '/placeholder.png'" 
-                  class="w-16 h-16 object-cover rounded border">
-              <div class="flex-1">
-                <div class="font-bold text-sm">{{ item.product_name }}</div>
-                <div class="text-xs text-gray-500">Phân loại: {{ item.size || 'N/A' }} / {{ item.color || 'N/A' }}</div>
-                <div class="text-xs text-gray-500">SKU: {{ item.sku || 'N/A' }}</div>
+          <!-- LEFT: Sản phẩm + Tóm tắt tiền -->
+          <div class="modal-left">
+            <div class="modal-section-title">🛒 Danh Sách Sản Phẩm</div>
+
+            <div v-for="item in (selectedOrder.order_items || selectedOrder.orderItems || [])" :key="item.id" class="modal-product-row">
+              <img :src="item.product_image_url || '/placeholder.png'" class="modal-product-img">
+              <div class="modal-product-info">
+                <div class="modal-product-name">{{ item.product_name }}</div>
+                <div class="modal-product-variant" v-if="item.size || item.color">
+                  Phân loại: {{ item.size || 'N/A' }} / {{ item.color || 'N/A' }}
+                </div>
+                <div class="modal-product-variant" v-else-if="item.variant_info">
+                  <span v-for="(v, k) in (typeof item.variant_info === 'string' ? JSON.parse(item.variant_info) : item.variant_info)" :key="k">
+                    {{ k }}: {{ v }} &nbsp;
+                  </span>
+                </div>
               </div>
-              <div class="text-right">
-                <div class="font-bold">{{ formatCurrency(item.price) }}</div>
-                <div class="text-sm text-gray-500">x {{ item.quantity }}</div>
+              <div class="modal-product-price">
+                <div class="price-val">{{ formatCurrency(item.price) }}</div>
+                <div class="price-qty">x{{ item.quantity }}</div>
               </div>
             </div>
 
-            <div class="bg-gray-50 p-4 rounded text-right space-y-2 text-sm">
-               <div class="flex justify-between"><span>Tạm tính:</span> <span>{{ formatCurrency(selectedOrder.subtotal) }}</span></div>
-               <div class="flex justify-between"><span>Phí vận chuyển:</span> <span>{{ formatCurrency(selectedOrder.shipping_fee) }}</span></div>
-               <div class="flex justify-between text-green-600"><span>Giảm giá:</span> <span>- {{ formatCurrency(selectedOrder.discount_amount) }}</span></div>
-               <div class="flex justify-between font-bold text-lg border-t pt-2"><span>Tổng cộng:</span> <span class="text-red-600">{{ formatCurrency(selectedOrder.total_amount) }}</span></div>
+            <!-- Tóm tắt -->
+            <div class="modal-summary">
+              <div class="summary-row"><span>Tạm tính</span><span>{{ formatCurrency(selectedOrder.subtotal) }}</span></div>
+              <div class="summary-row"><span>Phí vận chuyển</span><span>{{ formatCurrency(selectedOrder.shipping_fee) }}</span></div>
+              <div class="summary-row discount"><span>Giảm giá</span><span>- {{ formatCurrency(selectedOrder.discount_amount) }}</span></div>
+              <div class="summary-row total"><span>Tổng cộng</span><span class="total-amount">{{ formatCurrency(selectedOrder.total_amount) }}</span></div>
             </div>
           </div>
 
-          <div class="space-y-6">
-            <div class="bg-blue-50 p-4 rounded border border-blue-100">
-               <label class="block text-sm font-bold mb-2">Cập nhật trạng thái</label>
-               <select v-model="selectedOrder.order_status" class="w-full border p-2 rounded mb-2">
-                 <option value="pending">Chờ xác nhận</option>
-                 <option value="confirmed">Đã xác nhận (Đóng gói)</option>
-                 <option value="shipping">Đang giao hàng</option>
-                 <option value="completed">Hoàn thành</option>
-                 <option value="cancelled">Hủy đơn</option>
-               </select>
-               <button @click="updateStatus" class="w-full bg-blue-600 text-white py-2 rounded font-bold hover:bg-blue-700 transition">Lưu trạng thái</button>
+          <!-- RIGHT: Khách hàng + Cập nhật trạng thái -->
+          <div class="modal-right">
+            
+            <!-- Cập nhật trạng thái -->
+            <div class="modal-status-box">
+              <div class="modal-section-title">🔄 Cập Nhật Trạng Thái</div>
+              
+              <label class="block text-xs font-bold text-gray-500 mb-1 uppercase">Trạng thái đơn hàng</label>
+              <select v-model="selectedOrder.order_status" class="modal-select mb-3" :disabled="isUpdatingStatus">
+                <option value="pending">Chờ xác nhận</option>
+                <option value="confirmed">Đã xác nhận</option>
+                <option value="shipping">Đang giao hàng</option>
+                <option value="completed">Hoàn thành</option>
+                <option value="cancelled">Hủy đơn</option>
+              </select>
+
+              <label class="block text-xs font-bold text-gray-500 mb-1 uppercase">Trạng thái thanh toán</label>
+              <select v-model="selectedOrder.payment_status" class="modal-select mb-4" :disabled="isUpdatingStatus">
+                <option value="pending">Chưa thanh toán</option>
+                <option value="paid">Đã thanh toán</option>
+                <option value="failed">Thanh toán thất bại</option>
+              </select>
+
+              <button @click="confirmUpdateStatus" class="modal-btn-primary" :disabled="isUpdatingStatus">
+                {{ isUpdatingStatus ? 'Đang lưu...' : 'Lưu Thay Đổi' }}
+              </button>
             </div>
 
-            <div>
-              <h4 class="font-semibold text-gray-700 border-b pb-2 mb-2">Khách hàng</h4>
-              <p class="font-bold">{{ selectedOrder.full_name }}</p>
-              <p class="text-sm"><i class="fas fa-phone mr-1"></i> <a :href="'tel:'+selectedOrder.phone" class="text-blue-600">{{ selectedOrder.phone }}</a></p>
-              <p class="text-sm"><i class="fas fa-envelope mr-1"></i> {{ selectedOrder.email }}</p>
-              <p class="text-sm mt-2 font-semibold">Địa chỉ giao hàng:</p>
-              <p class="text-sm text-gray-600 bg-gray-100 p-2 rounded">{{ selectedOrder.address }}</p>
+            <!-- Modal Xác nhận cập nhật -->
+            <div v-if="showConfirmModal" class="confirm-modal-overlay">
+              <div class="confirm-modal">
+                <h3>Xác nhận thay đổi</h3>
+                <p>Bạn có chắc chắn muốn chuyển trạng thái đơn hàng sang <strong>{{ getStatusText(selectedOrder.order_status) }}</strong>?</p>
+                <div class="confirm-actions">
+                  <button @click="showConfirmModal = false" class="btn-cancel">Hủy</button>
+                  <button @click="updateStatus" class="btn-confirm">Xác nhận</button>
+                </div>
+              </div>
             </div>
 
-            <div>
-               <div class="text-sm text-yellow-700 bg-yellow-50 p-2 rounded mb-2" v-if="selectedOrder.note">
-                  <strong>Khách note:</strong> {{ selectedOrder.note }}
-               </div>
-               <div class="flex gap-2">
-                 <button @click="printInvoice" class="flex-1 border border-gray-300 py-1 rounded hover:bg-gray-100"><i class="fas fa-print"></i> In Hóa đơn</button>
-               </div>
+            <!-- Thông tin khách hàng -->
+            <div class="modal-customer-box">
+              <div class="modal-section-title">👤 Khách Hàng</div>
+              <div class="customer-name">{{ selectedOrder.full_name }}</div>
+              <div class="customer-detail"><span>📞</span><a :href="'tel:'+selectedOrder.phone">{{ selectedOrder.phone }}</a></div>
+              <div class="customer-detail"><span>✉️</span><span>{{ selectedOrder.email }}</span></div>
+              <div class="customer-address-label">Địa chỉ giao hàng:</div>
+              <div class="customer-address">{{ selectedOrder.address }}</div>
             </div>
+
+            <!-- Ghi chú + In hóa đơn -->
+            <div>
+              <div v-if="selectedOrder.note" class="modal-note">
+                <strong>📝 Khách ghi chú:</strong> {{ selectedOrder.note }}
+              </div>
+              <button @click="printInvoice" class="modal-btn-secondary">🖨️ In Hóa Đơn</button>
+            </div>
+
           </div>
         </div>
       </div>
@@ -222,6 +281,34 @@ import axios from 'axios';
 // State Data
 const currentTab = ref('orders');
 const orders = ref({});
+const isUpdatingStatus = ref(false);
+const showConfirmModal = ref(false);
+const notification = ref({ show: false, message: '', type: 'success' });
+let notificationTimeout = null;
+const paymentMethods = ref([]);
+
+const showNotify = (msg, type = 'success') => {
+  if (notificationTimeout) clearTimeout(notificationTimeout);
+  notification.value = { show: true, message: msg, type };
+  notificationTimeout = setTimeout(() => {
+    notification.value.show = false;
+  }, 3000);
+};
+
+const getStatusText = (status) => {
+  const map = {
+    pending: 'Chờ xác nhận',
+    confirmed: 'Đã xác nhận',
+    shipping: 'Đang giao hàng',
+    completed: 'Hoàn thành',
+    cancelled: 'Đã hủy'
+  };
+  return map[status] || status;
+};
+
+const confirmUpdateStatus = () => {
+  showConfirmModal.value = true;
+};
 const abandonedCarts = ref({});
 const showModal = ref(false);
 const selectedOrder = ref(null);
@@ -234,6 +321,15 @@ const filters = reactive({
   date_from: '',
   date_to: ''
 });
+
+const fetchPaymentMethods = async () => {
+  try {
+    const response = await axios.get('/admin/orders/payment-methods');
+    paymentMethods.value = response.data;
+  } catch (error) {
+    console.error("Lỗi tải phương thức thanh toán:", error);
+  }
+};
 
 // 1. Fetch Danh sách đơn hàng
 // Sửa lại hàm fetchOrders để xử lý trường hợp tham số là Event
@@ -285,23 +381,25 @@ const closeModal = () => {
 // 4. Cập nhật trạng thái
 const updateStatus = async () => {
   if (!selectedOrder.value) return;
+  showConfirmModal.value = false;
+  isUpdatingStatus.value = true;
   
   try {
-    // SỬA: Dùng order_code thay vì id
-    // URL sẽ thành: /api/admin/orders/ORD-2023-001/status
     const url = `/admin/${selectedOrder.value.order_code}/status`;
 
     await axios.post(url, {
       order_status: selectedOrder.value.order_status,
+      payment_status: selectedOrder.value.payment_status,
       _method: 'PUT'
     });
 
-    alert('Cập nhật trạng thái thành công!');
+    showNotify('Cập nhật trạng thái thành công!');
     fetchOrders(); 
-    closeModal();  
   } catch (error) {
     console.error(error);
-    alert('Lỗi cập nhật!');
+    showNotify('Lỗi cập nhật trạng thái!', 'error');
+  } finally {
+    isUpdatingStatus.value = false;
   }
 };
 
@@ -337,10 +435,10 @@ const printInvoice = () => {
         
         <div class="flex justify-between items-start border-b pb-4 mb-6">
             <div>
-                <h1 class="text-3xl font-bold uppercase tracking-wide mb-1">FLORENTIC</h1>
+                <h1 class="text-3xl font-bold uppercase tracking-wide mb-1">22.Décembre</h1>
                 <p class="text-gray-600">Thời trang & Phong cách</p>
                 <p class="mt-2">Địa chỉ: 123 Đường ABC, Quận XYZ, TP.HCM</p>
-                <p>Hotline: 0909.123.456 - Email: support@florentic.com</p>
+                <p>Hotline: 0909.123.456 - Email: support@22decembre.com</p>
             </div>
             <div class="text-right">
                 <h2 class="text-2xl font-bold text-gray-800">HÓA ĐƠN</h2>
@@ -429,7 +527,7 @@ const printInvoice = () => {
         </div>
         
         <div class="text-center mt-12 text-xs text-gray-400 italic">
-            Cảm ơn quý khách đã mua sắm tại Florentic!
+            Cảm ơn quý khách đã mua sắm tại 22.Décembre!
         </div>
 
       </body>
@@ -480,6 +578,24 @@ const statusText = (status) => {
   return map[status] || status;
 };
 
+const paymentStatusColor = (status) => {
+  const map = {
+    pending: 'bg-orange-100 text-orange-800 border-orange-200',
+    paid: 'bg-green-100 text-green-800 border-green-200',
+    failed: 'bg-red-100 text-red-800 border-red-200',
+  };
+  return map[status] || 'bg-gray-100 border-gray-200';
+};
+
+const paymentStatusText = (status) => {
+  const map = {
+    pending: 'Chưa thanh toán',
+    paid: 'Đã thanh toán',
+    failed: 'Thất bại',
+  };
+  return map[status] || status;
+};
+
 // Trong <script setup>
 const visiblePages = computed(() => {
   if (!orders.value.last_page) return [];
@@ -526,7 +642,7 @@ const changePage = async (page) => {
 // Init
 onMounted(() => {
   fetchOrders();
-
+  fetchPaymentMethods();
 });
 </script>
 
@@ -538,8 +654,8 @@ onMounted(() => {
 }
 
 :root {
-  --black: #000000;
-  --white: #ffffff;
+  --black: #A08B7A;
+  --black-hover: #333333;
   --gray-50: #fafafa;
   --gray-100: #f5f5f5;
   --gray-200: #e5e5e5;
@@ -1037,4 +1153,156 @@ button:disabled {
     padding: 12px 8px;
   }
 }
+
+/* ============================
+   ADMIN MODAL - ORDER DETAIL
+   ============================ */
+.admin-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 10, 10, 0.88);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+  backdrop-filter: blur(4px);
+}
+.admin-modal {
+  background: #ffffff;
+  border-radius: 16px;
+  width: 100%;
+  max-width: 900px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 30px 80px rgba(0,0,0,0.6);
+  display: flex;
+  flex-direction: column;
+}
+.admin-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 24px 32px;
+  background: #1a1a1a;
+  border-radius: 16px 16px 0 0;
+  flex-shrink: 0;
+}
+.modal-order-label {
+  font-size: 11px;
+  letter-spacing: 3px;
+  color: #a08b7a;
+  text-transform: uppercase;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+.modal-order-code { font-size: 22px; font-weight: 800; color: #ffffff; margin: 0; }
+.modal-close-btn {
+  background: rgba(255,255,255,0.1);
+  border: none;
+  color: #fff;
+  font-size: 28px;
+  line-height: 1;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+}
+.modal-close-btn:hover { background: rgba(255,255,255,0.25); }
+.admin-modal-body { display: grid; grid-template-columns: 1fr 320px; }
+.modal-left { padding: 28px 32px; border-right: 1px solid #f0f0f0; }
+.modal-right { padding: 28px; background: #fafafa; display: flex; flex-direction: column; gap: 20px; }
+.modal-section-title {
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: #555;
+  margin-bottom: 16px;
+  padding-bottom: 10px;
+  border-bottom: 2px solid #eeeeee;
+}
+.modal-product-row { display: flex; align-items: center; gap: 16px; padding: 14px 0; border-bottom: 1px solid #f5f5f5; }
+.modal-product-img { width: 70px; height: 70px; object-fit: cover; border-radius: 10px; border: 1px solid #eee; flex-shrink: 0; }
+.modal-product-info { flex: 1; }
+.modal-product-name { font-weight: 700; font-size: 15px; color: #1a1a1a; margin-bottom: 4px; }
+.modal-product-variant { font-size: 13px; color: #888; }
+.modal-product-price { text-align: right; flex-shrink: 0; }
+.price-val { font-weight: 800; font-size: 16px; color: #1a1a1a; }
+.price-qty { font-size: 13px; color: #aaa; margin-top: 2px; }
+.modal-summary { margin-top: 20px; background: #f8f8f8; border-radius: 12px; padding: 16px 20px; }
+.summary-row { display: flex; justify-content: space-between; font-size: 14px; color: #555; padding: 8px 0; border-bottom: 1px dashed #eee; }
+.summary-row:last-child { border-bottom: none; }
+.summary-row.discount span:last-child { color: #16a34a; font-weight: 600; }
+.summary-row.total { padding-top: 14px; font-size: 17px; font-weight: 800; color: #1a1a1a; }
+.total-amount { color: #e53e3e; font-size: 20px; }
+.modal-status-box, .modal-customer-box { background: #fff; border: 1px solid #e5e5e5; border-radius: 12px; padding: 18px; }
+.modal-select { width: 100%; padding: 10px 14px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; color: #1a1a1a; background: #fff; margin-bottom: 12px; outline: none; cursor: pointer; }
+.modal-btn-primary { width: 100%; background: #1a1a1a; color: #fff; border: none; padding: 12px; border-radius: 8px; font-weight: 700; font-size: 14px; cursor: pointer; transition: background 0.2s; }
+.modal-btn-primary:hover { background: #333; }
+.customer-name { font-size: 17px; font-weight: 800; color: #1a1a1a; margin-bottom: 10px; }
+.customer-detail { display: flex; align-items: center; gap: 8px; font-size: 14px; color: #444; margin-bottom: 6px; }
+.customer-detail a { color: #2563eb; text-decoration: none; }
+.customer-address-label { font-size: 13px; font-weight: 700; color: #888; margin-top: 10px; margin-bottom: 4px; }
+.customer-address { font-size: 13px; color: #555; background: #f5f5f5; padding: 8px 12px; border-radius: 8px; line-height: 1.5; }
+.modal-note { background: #fffbeb; border: 1px solid #fde68a; color: #92400e; border-radius: 8px; padding: 10px 14px; font-size: 13px; margin-bottom: 12px; }
+.modal-btn-secondary { width: 100%; background: #fff; color: #1a1a1a; border: 2px solid #1a1a1a; padding: 10px; border-radius: 8px; font-weight: 700; font-size: 14px; cursor: pointer; transition: all 0.2s; }
+.modal-btn-secondary:hover { background: #1a1a1a; color: #fff; }
+@media (max-width: 768px) {
+  .admin-modal-body { grid-template-columns: 1fr; }
+  .modal-left { border-right: none; border-bottom: 1px solid #f0f0f0; }
+}
   </style>
+/* Professional UI Improvements */
+<style scoped>
+.custom-notification {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  padding: 15px 25px;
+  border-radius: 8px;
+  color: white;
+  z-index: 2000;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  font-weight: 600;
+}
+.custom-notification.success { background: #10b981; }
+.custom-notification.error { background: #ef4444; }
+
+.confirm-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1500;
+}
+.confirm-modal {
+  background: white;
+  padding: 24px;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 400px;
+  text-align: center;
+}
+.confirm-modal h3 { margin-bottom: 12px; font-size: 18px; font-weight: 800; }
+.confirm-modal p { color: #666; margin-bottom: 24px; }
+.confirm-actions { display: flex; gap: 12px; justify-content: center; }
+.confirm-actions button {
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-weight: 700;
+  cursor: pointer;
+  border: none;
+}
+.btn-cancel { background: #eee; color: #666; }
+.btn-confirm { background: #1a1a1a; color: white; }
+
+.fade-enter-active, .fade-leave-active { transition: opacity 0.5s; }
+.fade-enter-from, .fade-leave-to { opacity: 0; }
+</style>

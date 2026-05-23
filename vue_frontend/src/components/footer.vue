@@ -17,13 +17,13 @@
 
       <div class="footer-middle">
         <div class="footer-col">
-          <h4 class="footer-heading">FLORENTIC</h4>
+          <h4 class="footer-heading">22.DÉCEMBRE</h4>
           <p class="brand-desc">
-            Phong cách tối giản, hiện đại và nghệ thuật. Chúng tôi định nghĩa lại vẻ đẹp qua những đường cắt vuông vức.
+            Một chốn nhỏ bình yên mang đậm phong cách tối giản, vintage nhẹ nhàng dành cho những tâm hồn hoài niệm.
           </p>
           <div class="contact-info">
             <p>Hotline: 1900 0000</p>
-            <p>Email: hello@florentic.com</p>
+            <p>Email: hello@22decembre.com</p>
           </div>
         </div>
 
@@ -53,32 +53,29 @@
             
             <a href="#" class="social-icon">
             <svg class="icon-svg" viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-                <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"></path>
+                <path d="M22.676 0H1.324C.593 0 0 .593 0 1.324v21.352C0 23.408.593 24 1.324 24h11.494v-9.294H9.689v-3.621h3.129V8.41c0-3.099 1.894-4.785 4.659-4.785 1.325 0 2.464.097 2.796.141v3.24l-1.917.001c-1.504 0-1.796.715-1.796 1.763v2.311h3.584l-.467 3.621h-3.117V24h6.116c.73 0 1.324-.592 1.324-1.324V1.324C24 .593 23.408 0 22.676 0z"/>
             </svg>
             <span>FACEBOOK</span>
             </a>
 
             <a href="#" class="social-icon">
-            <svg class="icon-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
-                <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
-                <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line>
+            <svg class="icon-svg" viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                <path d="M12 2.163c3.204 0 3.584.012 4.849.07 1.366.062 2.633.344 3.608 1.312.969.969 1.25 2.238 1.312 3.608.058 1.265.07 1.645.07 4.849s-.012 3.584-.07 4.849c-.062 1.366-.344 2.633-1.312 3.608-.969.969-2.238 1.25-3.608 1.312-1.265.058-1.645.07-4.849.07s-3.584-.012-4.849-.07c-1.366-.062-2.633-.344-3.608-1.312-.969-.969-1.25-2.238-1.312-3.608-.058-1.265-.07-1.645-.07-4.849s.012-3.584.07-4.849c.062-1.366.344-2.633 1.312-3.608.969-.969 2.238-1.25 3.608-1.312 1.265-.058 1.645-.07 4.849-.07M12 0C8.741 0 8.333.014 7.053.072 2.695.272.272 2.69 .072 7.053.014 8.333 0 8.741 0 12c0 3.259.014 3.667.072 4.947.2 4.358 2.618 6.78 6.98 6.981 1.28.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 1 0 0 12.324 6.162 6.162 0 0 0 0-12.324zM12 16a4 4 0 1 1 0-8 4 4 0 0 1 0 8zm3.98-10.98a1.44 1.44 0 1 0 0 2.88 1.44 1.44 0 0 0 0-2.88z"/>
             </svg>
             <span>INSTAGRAM</span>
             </a>
 
             <a href="#" class="social-icon">
             <svg class="icon-svg" viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-                <path d="M9 12a4 4 0 1 0 4 4V4a5 5 0 0 0 5 5v4a9 9 0 0 1-9-9z"></path>
+                <path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 2.23-.9 4.46-2.37 6.11-1.48 1.67-3.6 2.67-5.87 2.81-2.26.15-4.59-.39-6.42-1.72-1.85-1.35-3.07-3.41-3.36-5.69-.28-2.28.29-4.67 1.68-6.46 1.41-1.81 3.63-2.91 5.95-3.04v4.02c-1.16.05-2.32.48-3.15 1.3-1.07 1.05-1.48 2.68-1.09 4.14.39 1.48 1.65 2.66 3.12 3.01 1.49.36 3.12.06 4.31-.95 1.05-.88 1.64-2.23 1.67-3.61.02-4.9.01-9.8.01-14.71z"/>
             </svg>
             <span>TIKTOK</span>
             </a>
 
             <a href="#" class="social-icon">
             <svg class="icon-svg" viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-                <path d="M22.54 6.42a2.78 2.78 0 0 0-1.94-2C18.88 4 12 4 12 4s-6.88 0-8.6.46a2.78 2.78 0 0 0-1.94 2A29 29 0 0 0 1 11.75a29 29 0 0 0 .46 5.33A2.78 2.78 0 0 0 3.4 19c1.72.46 8.6.46 8.6.46s6.88 0 8.6-.46a2.78 2.78 0 0 0 1.94-2 29 29 0 0 0 .46-5.25 29 29 0 0 0-.46-5.33z"></path>
-                <polygon points="9.75 15.02 15.5 11.75 9.75 8.48 9.75 15.02" fill="#000"></polygon> 
-                </svg>
+                <path d="M21.582 6.186a2.686 2.686 0 0 0-1.884-1.895C17.973 3.846 12 3.846 12 3.846s-5.973 0-7.698.445a2.686 2.686 0 0 0-1.884 1.895C2 7.915 2 12 2 12s0 4.085.418 5.814a2.686 2.686 0 0 0 1.884 1.895C5.973 20.154 12 20.154 12 20.154s5.973 0 7.698-.445a2.686 2.686 0 0 0 1.884-1.895C22 16.085 22 12 22 12s0-4.085-.418-5.814zM9.996 15.005l0-6.01 5.362 3.004-5.362 3.006z"/>
+            </svg>
             <span>YOUTUBE</span>
             </a>
 
@@ -87,7 +84,7 @@
       </div>
 
       <div class="footer-bottom">
-        <p class="copyright">© 2025 FLORENTIC. ALL RIGHTS RESERVED.</p>
+        <p class="copyright">© 2025 22.DÉCEMBRE. ALL RIGHTS RESERVED.</p>
         <div class="payment-methods">
           <span>VISA</span>
           <span>MASTERCARD</span>
@@ -111,11 +108,11 @@
 }
 
 .site-footer {
-  background-color: #000;
-  color: #fff;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  background-color: #E6E0D8;
+  color: #333333;
+  font-family: var(--font-body);
   padding: 80px 0 30px 0;
-  border-top: 1px solid #2a2a2a;
+  border-top: 1px solid #D9CFC4;
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -135,17 +132,17 @@
 }
 
 .newsletter-title {
-  font-size: 20px;
-  font-weight: 700;
+  font-size: 18px;
+  font-weight: 800;
   letter-spacing: 3px;
   margin-bottom: 12px;
   text-transform: uppercase;
-  color: #fff;
+  color: #333333;
 }
 
 .newsletter-desc {
   font-size: 14px;
-  color: #b3b3b3;
+  color: #555555;
   margin-bottom: 28px;
   letter-spacing: 0.3px;
   line-height: 1.5;
@@ -162,10 +159,10 @@
 .newsletter-input {
   flex: 1;
   padding: 16px 20px;
-  background-color: transparent;
-  border: 2px solid #fff;
+  background-color: #FAF9F6;
+  border: 1px solid #D9CFC4;
   border-right: none;
-  color: #fff;
+  color: #333333;
   font-size: 14px;
   outline: none;
   border-radius: 0;
@@ -178,7 +175,7 @@
 }
 
 .newsletter-input::placeholder {
-  color: #666;
+  color: #888888;
   text-transform: uppercase;
   letter-spacing: 1px;
   font-size: 12px;
@@ -186,9 +183,9 @@
 
 .newsletter-btn {
   padding: 16px 32px;
-  background-color: #fff;
-  color: #000;
-  border: 2px solid #fff;
+  background-color: #A08B7A;
+  color: #FFF;
+  border: 1px solid #A08B7A;
   font-weight: 700;
   font-size: 13px;
   cursor: pointer;
@@ -200,8 +197,9 @@
 }
 
 .newsletter-btn:hover {
-  background-color: #000;
-  color: #fff;
+  background-color: #333333;
+  color: #FFF;
+  border-color: #333333;
   transform: translateX(2px);
 }
 
@@ -212,7 +210,7 @@
 /* Divider */
 .divider {
   height: 1px;
-  background: linear-gradient(to right, transparent, #333 20%, #333 80%, transparent);
+  background: linear-gradient(to right, transparent, #D9CFC4 20%, #D9CFC4 80%, transparent);
   margin-bottom: 70px;
 }
 
@@ -226,16 +224,16 @@
 
 .footer-heading {
   font-size: 15px;
-  font-weight: 700;
+  font-weight: 800;
   margin-bottom: 28px;
   letter-spacing: 2px;
   text-transform: uppercase;
-  color: #fff;
+  color: #333333;
 }
 
 .brand-desc {
   font-size: 14px;
-  color: #b3b3b3;
+  color: #555555;
   line-height: 1.8;
   margin-bottom: 24px;
   max-width: 350px;
@@ -243,7 +241,7 @@
 
 .contact-info p {
   font-size: 14px;
-  color: #b3b3b3;
+  color: #555555;
   margin: 8px 0;
   line-height: 1.6;
 }
@@ -259,7 +257,7 @@
 }
 
 .footer-links a {
-  color: #b3b3b3;
+  color: #555555;
   text-decoration: none;
   font-size: 14px;
   transition: all 0.3s ease;
@@ -274,12 +272,12 @@
   height: 1px;
   bottom: -2px;
   left: 0;
-  background-color: #fff;
+  background-color: #333;
   transition: width 0.3s ease;
 }
 
 .footer-links a:hover {
-  color: #fff;
+  color: #333;
   transform: translateX(4px);
 }
 
@@ -295,21 +293,36 @@
 }
 
 .social-icon {
-  color: #fff;
+  color: #333333;
   text-decoration: none;
   font-size: 12px;
-  font-weight: 700;
-  border: 2px solid #333;
+  font-weight: 600;
+  border: 1px solid #D9CFC4;
   padding: 14px 20px;
   display: flex;
   align-items: center;
   gap: 14px;
   width: fit-content;
   min-width: 160px;
-  transition: all 0.3s ease;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   letter-spacing: 1.2px;
   text-transform: uppercase;
   border-radius: 0;
+  position: relative;
+  overflow: hidden;
+  z-index: 1;
+}
+
+.social-icon::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0%;
+  height: 100%;
+  background-color: #A08B7A;
+  transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: -1;
 }
 
 .icon-svg {
@@ -317,24 +330,27 @@
   width: 18px;
   height: 18px;
   flex-shrink: 0;
+  transition: transform 0.4s ease;
+}
+
+.social-icon:hover::before {
+  width: 100%;
 }
 
 .social-icon:hover {
-  background-color: #fff;
-  color: #000;
-  border-color: #fff;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(255, 255, 255, 0.1);
+  color: #FFF;
+  border-color: #A08B7A;
+  transform: translateX(5px);
+  box-shadow: 0 4px 15px rgba(160, 139, 122, 0.3);
 }
 
-.social-icon:hover .icon-svg path,
-.social-icon:hover .icon-svg polygon {
-  fill: #000;
+.social-icon:hover .icon-svg {
+  transform: scale(1.15);
 }
 
 /* --- BOTTOM SECTION --- */
 .footer-bottom {
-  border-top: 1px solid #2a2a2a;
+  border-top: 1px solid #E6E0D8;
   padding-top: 30px;
   display: flex;
   justify-content: space-between;
@@ -345,7 +361,7 @@
 
 .copyright {
   font-size: 12px;
-  color: #666;
+  color: #666666;
   letter-spacing: 1px;
   text-transform: uppercase;
 }
@@ -358,7 +374,7 @@
 
 .payment-methods span {
   font-size: 12px;
-  color: #666;
+  color: #666666;
   font-weight: 600;
   letter-spacing: 1px;
   text-transform: uppercase;
@@ -450,7 +466,7 @@
   
   .newsletter-input {
     width: 100%;
-    border: 2px solid #fff;
+    border: 1px solid #333;
     padding: 14px 18px;
   }
   

@@ -81,12 +81,4 @@ class User extends Authenticatable
     {
         return $this->hasMany(CartSession::class);
     }
-
-    /**
-     * Quan hệ: User có nhiều chatbot conversations
-     */
-    public function chatbotConversations()
-    {
-        return $this->hasMany(ChatbotConversation::class);
-    }
 }

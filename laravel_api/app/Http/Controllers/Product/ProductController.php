@@ -11,13 +11,16 @@ class ProductController extends Controller
 {
    public function getByCategory(Request $request, $slug)
     {
-       $category = Category::with('children')
-            ->where('slug', $slug)
-            ->first();
-
-        if (!$category) {
-            return response()->json(['message' => 'Category not found'], 404);
-        }
+        $category = Category::with(['children', 'parent.parent'])
+             ->where('slug', $slug)
+             ->where('status', 'active')
+             ->first();
+ 
+         // Kiểm tra tính "Active" của toàn bộ phả hệ
+         if (!$category || ($category->parent && $category->parent->status !== 'active') || 
+             ($category->parent && $category->parent->parent && $category->parent->parent->status !== 'active')) {
+             return response()->json(['message' => 'Danh mục không tồn tại hoặc đã bị ẩn'], 404);
+         }
 
         // Lấy chính nó + các con (nếu có)
         $targetIds = $category->children->pluck('id')->toArray();
@@ -41,16 +44,29 @@ class ProductController extends Controller
         if ($request->filled('sizes')) {
             $sizes = explode(',', $request->sizes);
             $query->whereHas('variants', function ($q) use ($sizes) {
-                $q->whereIn('size', $sizes);
+                $q->where(function ($subQ) use ($sizes) {
+                    $keys = ['Size', 'size', 'Kích thước'];
+                    foreach ($sizes as $size) {
+                        foreach ($keys as $key) {
+                            $subQ->orWhereJsonContains("variant_attributes->{$key}", $size);
+                        }
+                    }
+                });
             });
         }
 
-        // --- Lọc theo màu (color_name hoặc color_code) ---
+        // --- Lọc theo màu ---
         if ($request->filled('colors')) {
             $colors = explode(',', $request->colors);
             $query->whereHas('variants', function ($q) use ($colors) {
-                $q->whereIn('color_name', $colors)
-                  ->orWhereIn('color_code', $colors);
+                $q->where(function ($subQ) use ($colors) {
+                    $keys = ['Màu', 'Màu sắc', 'Color', 'color'];
+                    foreach ($colors as $color) {
+                        foreach ($keys as $key) {
+                            $subQ->orWhereJsonContains("variant_attributes->{$key}", $color);
+                        }
+                    }
+                });
             });
         }
 
@@ -75,6 +91,7 @@ class ProductController extends Controller
     public function getAll(Request $request) 
     {
         $query = Product::with(['images', 'variants'])
+            ->activeCategory() // Chỉ lấy sản phẩm thuộc danh mục active
             ->where('status', 'active')
             ->orderBy('created_at', 'desc');
 
@@ -91,7 +108,14 @@ class ProductController extends Controller
         if ($request->filled('sizes')) {
             $sizes = explode(',', $request->sizes);
             $query->whereHas('variants', function ($q) use ($sizes) {
-                $q->whereIn('size', $sizes);
+                $q->where(function ($subQ) use ($sizes) {
+                    $keys = ['Size', 'size', 'Kích thước'];
+                    foreach ($sizes as $size) {
+                        foreach ($keys as $key) {
+                            $subQ->orWhereJsonContains("variant_attributes->{$key}", $size);
+                        }
+                    }
+                });
             });
         }
 
@@ -99,8 +123,14 @@ class ProductController extends Controller
         if ($request->filled('colors')) {
             $colors = explode(',', $request->colors);
             $query->whereHas('variants', function ($q) use ($colors) {
-                $q->whereIn('color_name', $colors)
-                  ->orWhereIn('color_code', $colors);
+                $q->where(function ($subQ) use ($colors) {
+                    $keys = ['Màu', 'Màu sắc', 'Color', 'color'];
+                    foreach ($colors as $color) {
+                        foreach ($keys as $key) {
+                            $subQ->orWhereJsonContains("variant_attributes->{$key}", $color);
+                        }
+                    }
+                });
             });
         }
 

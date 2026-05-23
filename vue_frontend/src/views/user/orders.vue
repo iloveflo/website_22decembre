@@ -41,7 +41,7 @@
               <span class="shop-name">Mã đơn: {{ order.order_code }}</span>
               <button class="btn-view-shop">Xem Shop</button>
             </div>
-            <div class="order-status">
+            <div class="order-status" :class="order.order_status">
               {{ getStatusLabel(order.order_status) }}
             </div>
           </div>
@@ -75,6 +75,7 @@
                 
                 <button v-if="order.order_status === 'completed'"class="btn-solid"@click="handleReview(order.order_code)">Đánh Giá</button>
                 <button v-if="order.order_status === 'completed' || order.order_status === 'cancelled'"class="btn-solid"@click="openBuyAgainModal(order)">Mua Lại</button>
+                <button v-if="order.order_status === 'pending'" class="btn-outline danger" @click="openCancelModal(order.order_code)">Hủy Đơn</button>
                 <button class="btn-outline" @click="viewDetail(order.order_code)">Xem Chi Tiết</button>
               </div>
             </div>
@@ -86,6 +87,7 @@
       </div>
   </div>
 
+  <!-- Modal Xác Nhận Mua Lại -->
   <div v-if="showConfirmModal" class="modal-overlay">
       <div class="modal-content">
         <h3 class="modal-title">Xác Nhận Mua Lại</h3>
@@ -99,6 +101,21 @@
       </div>
     </div>
 
+    <!-- Modal Xác Nhận Hủy Đơn (MỚI) -->
+    <div v-if="showCancelConfirmModal" class="modal-overlay">
+      <div class="modal-content">
+        <h3 class="modal-title">Xác Nhận Hủy Đơn</h3>
+        <p class="modal-desc">
+          Bạn có chắc chắn muốn hủy đơn hàng <b>{{ orderCodeToCancel }}</b> không? Hành động này không thể hoàn tác.
+        </p>
+        <div class="modal-actions">
+          <button @click="closeModals" class="btn-cancel">Quay Lại</button>
+          <button @click="executeCancelOrder" class="btn-confirm danger">Xác Nhận Hủy</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal Kết Quả -->
     <div v-if="showResultModal" class="modal-overlay">
       <div class="modal-content">
         <h3 class="modal-title">{{ resultTitle }}</h3>
@@ -128,27 +145,25 @@ export default {
         
       ],
       showConfirmModal: false,
+      showCancelConfirmModal: false, // Thêm mới
       showResultModal: false,
-      selectedOrder: null,   // Lưu đơn hàng đang chọn mua lại
-      resultTitle: '',       // Tiêu đề thông báo (Thành công/Thất bại)
-      resultMessage: '',     // Nội dung thông báo
-      isSuccess: false,      // Để biết nếu thành công thì redirect
+      selectedOrder: null,   
+      orderCodeToCancel: '',  // Thêm mới
+      resultTitle: '',       
+      resultMessage: '',     
+      isSuccess: false,      
 
-      isLoggedIn: false,     // Biến theo dõi trạng thái đăng nhập
-      hasSessionParam: false // Biến theo dõi xem có đang xem theo Session không
+      isLoggedIn: false,     
+      hasSessionParam: false 
     };
   },
   mounted() {
-    // Kiểm tra trạng thái ngay khi load trang
     this.checkAuthStatus();
     this.fetchOrders();
   },
   methods: {
     checkAuthStatus() {
-        // Kiểm tra Token
         this.isLoggedIn = !!localStorage.getItem('token');
-        
-        // Kiểm tra Session Params (URL hoặc Local)
         const urlSession = this.$route.query.session_id;
         const localSession = sessionStorage.getItem('cart_session_id');
         this.hasSessionParam = !!(urlSession || localSession);
@@ -156,50 +171,30 @@ export default {
     async fetchOrders() {
       this.loading = true;
       try {
-        // 1. Lấy Token từ LocalStorage
-        // ⚠️ QUAN TRỌNG: Kiểm tra xem lúc Login bạn lưu key tên là 'token' hay 'access_token'?
-        // Mở F12 -> Application -> Local Storage để xem chính xác.
         const token = localStorage.getItem('token'); 
-        // Cập nhật lại trạng thái (đề phòng thay đổi)
         this.isLoggedIn = !!token;
-        
-        // 2. Lấy session_id (Ưu tiên URL, sau đó đến LocalStorage)
         const urlSessionId = this.$route.query.session_id;
         const localSessionId = sessionStorage.getItem('cart_session_id');
         this.hasSessionParam = !!(urlSessionId || localSessionId);
-        // 3. Chuẩn bị params
         const params = { 
           status: this.currentStatus,
           page: 1
         };
-
-        // --- LOGIC XỬ LÝ ID ---
         if (urlSessionId) {
-            // Trường hợp 1: Có session trên URL (Link tracking) -> Ưu tiên số 1
             params.session_id = urlSessionId;
         } 
         else if (!token && localSessionId) {
-            // Trường hợp 2: Không đăng nhập + Có session local -> Gửi session local
             params.session_id = localSessionId;
         }
-        // Trường hợp 3: Đã đăng nhập (Có token) -> Không gửi session_id -> Backend tự lấy User ID
-
-        // 4. Cấu hình Headers
         const config = {
           params: params,
           headers: {}
         };
-        
         if (token) {
           config.headers['Authorization'] = `Bearer ${token}`;
         }
-
-        // 5. GỌI API (SỬA LẠI ĐƯỜNG DẪN THEO BACKEND CỦA BẠN)
         const response = await axios.get('/orders', config);
-        
-        // Gán dữ liệu
         this.orders = response.data.data.data;
-
       } catch (error) {
         console.error("Lỗi tải đơn hàng:", error);
       } finally {
@@ -217,7 +212,7 @@ export default {
     },
 
     getImageUrl(path) {
-      if (!path) return 'https://via.placeholder.com/80';
+      if (!path) return 'https://placehold.co/80';
       if (path.startsWith('http')) return path;
       return path.startsWith('/') ? path : '/' + path;
     },
@@ -234,10 +229,7 @@ export default {
     },
 
     viewDetail(orderCode) {
-       // 1. Kiểm tra xem hiện tại có đang xem bằng session_id không
        const currentSession = this.$route.query.session_id;
-       
-       // 2. Chuyển hướng kèm theo query params
        this.$router.push({
            path: `/user/order/${orderCode}`,
            query: currentSession ? { session_id: currentSession } : {}
@@ -253,15 +245,22 @@ export default {
       this.showConfirmModal = true;
     },
 
-    // 2. HÀM CHẠY KHI BẤM "ĐỒNG Ý" TRONG MODAL
     async executeBuyAgain() {
-      // Đóng modal xác nhận & hiện loading (nếu muốn)
       this.showConfirmModal = false;
-      this.loading = true; // Tận dụng loading của trang hoặc tạo loading riêng
+      this.loading = true;
 
       try {
         const token = localStorage.getItem('token');
-        const sessionId = sessionStorage.getItem('cart_session_id');
+        const urlSessionId = this.$route.query.session_id;
+        const localSessionId = sessionStorage.getItem('cart_session_id');
+        const sessionId = urlSessionId || localSessionId;
+
+        // Nếu đang dùng session từ URL email, đồng bộ vào sessionStorage ngay
+        // để giỏ hàng tìm đúng sản phẩm sau khi redirect
+        if (urlSessionId && !token) {
+          sessionStorage.setItem('cart_session_id', urlSessionId);
+          window.dispatchEvent(new Event('cart-updated'));
+        }
 
         const payload = {
           order_id: this.selectedOrder.id,
@@ -271,17 +270,14 @@ export default {
         const config = { headers: {} };
         if (token) config.headers['Authorization'] = `Bearer ${token}`;
 
-        // Gọi API
         const response = await axios.post('/cart/buy-again', payload, config);
 
-        // THÀNH CÔNG -> Hiện Modal Kết quả
         this.showResultModal = true;
         this.resultTitle = 'Thành Công';
         this.resultMessage = response.data.message;
         this.isSuccess = true;
 
       } catch (error) {
-        // THẤT BẠI -> Hiện Modal Lỗi
         console.error(error);
         this.showResultModal = true;
         this.resultTitle = 'Thất Bại';
@@ -292,25 +288,65 @@ export default {
       }
     },
 
-    // 3. CÁC HÀM ĐÓNG MODAL
     closeModals() {
       this.showConfirmModal = false;
+      this.showCancelConfirmModal = false; // Mới
       this.selectedOrder = null;
+      this.orderCodeToCancel = ''; // Mới
     },
 
     closeResultModal() {
       this.showResultModal = false;
-      // Nếu mua lại thành công thì mới chuyển trang
       if (this.isSuccess) {
         this.$router.push('/user/cart');
       }
     },
+
+    openCancelModal(orderCode) {
+        this.orderCodeToCancel = orderCode;
+        this.showCancelConfirmModal = true;
+    },
+
+    async executeCancelOrder() {
+        this.showCancelConfirmModal = false;
+        this.loading = true;
+        try {
+            const orderCode = this.orderCodeToCancel;
+            const token = localStorage.getItem('token');
+            const localSessionId = sessionStorage.getItem('cart_session_id');
+            const urlSessionId = this.$route.query.session_id;
+            const sessionId = urlSessionId || localSessionId;
+
+            const config = { headers: {} };
+            if (token) config.headers['Authorization'] = `Bearer ${token}`;
+            
+            const params = {};
+            if (!token && sessionId) params.session_id = sessionId;
+
+            await axios.post(`/orders/${orderCode}/cancel`, {}, { 
+                ...config,
+                params: params
+            });
+
+            this.showResultModal = true;
+            this.resultTitle = 'Thành Công';
+            this.resultMessage = 'Đơn hàng đã được hủy thành công.';
+            this.isSuccess = false; 
+            this.fetchOrders(); 
+        } catch (error) {
+            console.error(error);
+            this.showResultModal = true;
+            this.resultTitle = 'Lỗi';
+            this.resultMessage = error.response?.data?.message || 'Không thể hủy đơn hàng.';
+        } finally {
+            this.loading = false;
+        }
+    }
   }
 };
 </script>
 
 <style scoped>
-/* Thêm CSS Spinner cho đẹp */
 .loading-state {
     display: flex;
     justify-content: center;
@@ -323,7 +359,7 @@ export default {
     width: 20px;
     height: 20px;
     border: 2px solid #ddd;
-    border-top-color: #ee4d2d;
+    border-top-color: #a08b7a;
     border-radius: 50%;
     animation: spin 0.8s linear infinite;
 }
@@ -331,12 +367,11 @@ export default {
     to { transform: rotate(360deg); }
 }
 
-/* Các CSS cũ của Shopee style giữ nguyên */
 .shopee-container {
-    background-color: #f5f5f5;
+    background-color: #f8f7f4;
     min-height: 100vh;
     padding-top: 120px;
-    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    font-family: 'Outfit', sans-serif;
 }
 .main-content {
     max-width: 980px;
@@ -346,45 +381,51 @@ export default {
     background: #fff;
     display: flex;
     margin-bottom: 20px;
-    border-radius: 2px;
-    box-shadow: 0 1px 1px 0 rgba(0,0,0,.05);
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0,0,0,.04);
 }
 .tab-item {
     flex: 1;
     text-align: center;
     padding: 16px 0;
     cursor: pointer;
-    font-size: 16px;
-    color: #333;
+    font-size: 15px;
+    color: #666;
+    font-weight: 500;
     border-bottom: 2px solid transparent;
-    transition: all 0.2s;
+    transition: all 0.3s;
 }
 .tab-item:hover {
-    color: #ee4d2d;
+    color: #a08b7a;
 }
 .tab-item.active {
-    color: #ee4d2d;
-    border-bottom: 2px solid #ee4d2d;
+    color: #5a4d44;
+    border-bottom: 2px solid #a08b7a;
+    font-weight: 800;
 }
 .empty-state {
     background: #fff;
     text-align: center;
     padding: 100px 0;
     width: 100%;
+    border-radius: 12px;
 }
 .empty-state img {
     width: 100px;
     margin-bottom: 20px;
+    opacity: 0.6;
 }
 .order-card {
     background: #fff;
     margin-bottom: 20px;
-    box-shadow: 0 1px 1px 0 rgba(0,0,0,.05);
-    border-radius: 2px;
+    box-shadow: 0 4px 20px rgba(0,0,0,.04);
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid #f0eae3;
 }
 .card-header {
     padding: 20px;
-    border-bottom: 1px solid #f1f1f1;
+    border-bottom: 1px solid #f0eae3;
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -395,34 +436,44 @@ export default {
     gap: 10px;
 }
 .favorite-badge {
-    background: #ee4d2d;
+    background: #a08b7a;
     color: #fff;
-    font-size: 12px;
-    padding: 2px 4px;
-    border-radius: 2px;
+    font-size: 11px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
 }
 .shop-name {
-    font-weight: 500;
-}
-.btn-chat, .btn-view-shop {
-    background: #ee4d2d;
-    color: #fff;
-    border: none;
-    padding: 4px 10px;
-    font-size: 12px;
-    cursor: pointer;
-    border-radius: 2px;
+    font-weight: 700;
+    color: #5a4d44;
+    font-size: 16px;
 }
 .btn-view-shop {
     background: #fff;
-    border: 1px solid #ccc;
-    color: #555;
+    border: 1px solid #e6e0d8;
+    color: #888;
+    padding: 4px 10px;
+    font-size: 12px;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: all 0.2s;
+}
+.btn-view-shop:hover {
+    background: #f8f7f4;
+    color: #a08b7a;
 }
 .order-status {
-    color: #ee4d2d;
     text-transform: uppercase;
-    font-size: 14px;
+    font-size: 15px;
+    font-weight: 800;
+    letter-spacing: 1px;
 }
+.order-status.pending { color: #a08b7a; }
+.order-status.confirmed, .order-status.completed { color: #28a745; }
+.order-status.shipping { color: #007bff; }
+.order-status.cancelled, .order-status.failed { color: #dc3545; }
+
 .card-body {
     padding: 20px;
 }
@@ -430,7 +481,7 @@ export default {
     display: flex;
     gap: 15px;
     padding-bottom: 15px;
-    border-bottom: 1px solid #fafafa;
+    border-bottom: 1px solid #f8f7f4;
     margin-bottom: 15px;
 }
 .product-item:last-child {
@@ -441,43 +492,45 @@ export default {
     width: 80px;
     height: 80px;
     object-fit: cover;
-    border: 1px solid #e1e1e1;
+    border-radius: 8px;
+    border: 1px solid #f0eae3;
 }
 .product-info {
     flex: 1;
 }
 .product-name {
-    font-size: 16px;
-    margin: 0 0 5px;
-    font-weight: 400;
-    line-height: 20px;
-    color: rgba(0,0,0,.87);
+    font-size: 18px;
+    margin: 0 0 8px;
+    font-weight: 700;
+    color: #5a4d44;
 }
 .product-variant {
-    color: rgba(0,0,0,.54);
+    color: #888;
     font-size: 14px;
-    margin-bottom: 5px;
 }
 .product-qty {
-    font-size: 14px;
+    font-size: 15px;
+    color: #666;
+    margin-top: 5px;
 }
 .product-price {
     text-align: right;
 }
 .old-price {
     text-decoration: line-through;
-    color: #999;
-    font-size: 14px;
-    margin-right: 10px;
+    color: #bbb;
+    font-size: 13px;
+    margin-right: 8px;
 }
 .current-price {
-    color: #ee4d2d;
-    font-size: 16px;
+    color: #5a4d44;
+    font-size: 18px;
+    font-weight: 700;
 }
 .card-footer {
-    background: #fffbf8;
-    padding: 24px;
-    border-top: 1px dotted #e8e8e8;
+    background: #fdfcfb;
+    padding: 20px 24px;
+    border-top: 1px solid #f0eae3;
 }
 .total-section {
     display: flex;
@@ -487,13 +540,13 @@ export default {
     margin-bottom: 20px;
 }
 .total-label {
-    font-size: 14px;
-    color: #000;
+    font-size: 15px;
+    color: #666;
 }
 .total-price {
-    font-size: 24px;
-    color: #ee4d2d;
-    font-weight: 500;
+    font-size: 26px;
+    color: #a08b7a;
+    font-weight: 800;
 }
 .action-buttons {
     display: flex;
@@ -501,120 +554,93 @@ export default {
 }
 .btn-group {
     display: flex;
-    gap: 10px;
+    gap: 12px;
     align-items: center;
 }
 .btn-solid {
-    background: #ee4d2d;
+    background: #a08b7a;
     color: #fff;
-    border: 1px solid #ee4d2d;
-    padding: 10px 40px;
-    border-radius: 2px;
+    border: none;
+    padding: 12px 35px;
+    border-radius: 8px;
     cursor: pointer;
-    font-size: 14px;
+    font-size: 15px;
+    font-weight: 700;
+    transition: all 0.3s;
 }
 .btn-solid:hover {
-    background: #d7321e;
+    background: #5a4d44;
+    transform: translateY(-2px);
 }
 .btn-outline {
     background: #fff;
-    color: #555;
-    border: 1px solid #dbdbdb;
-    padding: 10px 20px;
-    border-radius: 2px;
+    color: #5a4d44;
+    border: 1px solid #e6e0d8;
+    padding: 12px 25px;
+    border-radius: 8px;
     cursor: pointer;
-    font-size: 14px;
+    font-size: 15px;
+    font-weight: 700;
+    transition: all 0.3s;
 }
 .btn-outline:hover {
-    background: #fdfdfd;
-    border-color: #ccc;
+    background: #f8f7f4;
+    border-color: #a08b7a;
+    color: #a08b7a;
 }
-.note-text {
-    color: #888;
-    font-size: 14px;
-    margin-right: 10px;
+.btn-outline.danger {
+    color: #dc3545;
+    border-color: #ffccc7;
+}
+.btn-outline.danger:hover {
+    background: #fff1f0;
+    border-color: #dc3545;
+    color: #dc3545;
 }
 
-/* Lớp phủ màn hình (Backdrop) */
 .modal-overlay {
   position: fixed;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(0, 0, 0, 0.6); /* Nền đen mờ */
+  background: rgba(90, 77, 68, 0.6);
+  backdrop-filter: blur(8px);
   display: flex;
   justify-content: center;
   align-items: center;
   z-index: 1000;
-  animation: fadeIn 0.2s ease-out;
+  animation: fadeIn 0.3s ease-out;
 }
-
-/* Hộp Modal */
 .modal-content {
   background: #fff;
   width: 90%;
-  max-width: 400px;
-  padding: 30px;
-  border-radius: 0; /* Vuông vức theo style của bạn */
-  box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+  max-width: 450px;
+  border-radius: 24px;
+  border: 1px solid #e6e0d8;
+  padding: 40px;
+  box-shadow: 0 20px 50px rgba(0,0,0,0.1);
   text-align: center;
-  border: 1px solid #000; /* Viền đen mỏng hiện đại */
 }
-
 .modal-title {
-  font-size: 18px;
-  font-weight: 600;
-  margin-bottom: 15px;
-  text-transform: uppercase;
-  letter-spacing: 1px;
+    color: #5a4d44;
+    font-size: 22px;
 }
-
-.modal-desc {
-  font-size: 14px;
-  color: #555;
-  margin-bottom: 30px;
-  line-height: 1.5;
-}
-
-/* Khu vực nút bấm */
-.modal-actions {
-  display: flex;
-  gap: 15px;
-  justify-content: center;
-}
-
-.btn-cancel, .btn-confirm {
-  padding: 10px 25px;
-  font-size: 14px;
-  cursor: pointer;
-  border: 1px solid #000;
-  font-weight: 500;
-  transition: all 0.2s;
-  min-width: 100px;
-}
-
-.btn-cancel {
-  background: #fff;
-  color: #000;
-}
-.btn-cancel:hover {
-  background: #f0f0f0;
-}
-
 .btn-confirm {
-  background: #000;
-  color: #fff;
+  background: #a08b7a;
+  border-color: #a08b7a;
+}
+.btn-confirm.danger {
+  background: #dc3545;
 }
 .btn-confirm:hover {
-  background: #333;
+  opacity: 0.9;
 }
 
 .full-width {
   width: 100%;
 }
 
-/* Hiệu ứng hiện dần */
 @keyframes fadeIn {
   from { opacity: 0; }
   to { opacity: 1; }

@@ -26,13 +26,11 @@ class ProductRequest extends FormRequest
             'sku'         => 'nullable|string|max:50',
 
             // mảng variants (có thể gửi hoặc không)
-            'variants'                    => 'nullable|array',
-            'variants.*.color_name'       => 'nullable|string|max:50',
-            'variants.*.color_code'       => 'nullable|string|max:7',
-            'variants.*.size'             => 'required_with:variants|string|in:S,M,L,XL,XXL',
-            'variants.*.sku'              => 'nullable|string|max:50',
-            'variants.*.quantity'         => 'nullable|integer|min:0',
-            'variants.*.additional_price' => 'nullable|numeric|min:0',
+            'variants'                       => 'nullable|array',
+            'variants.*.variant_attributes'  => 'nullable|array',
+            'variants.*.sku'                 => 'nullable|string|max:50',
+            'variants.*.quantity'            => 'nullable|integer|min:0',
+            'variants.*.additional_price'    => 'nullable|numeric|min:0',
         ];
     }
 }

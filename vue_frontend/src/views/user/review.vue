@@ -76,6 +76,7 @@
 import { ref, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import axios from 'axios';
+import Swal from 'sweetalert2';
 
 const route = useRoute();
 const router = useRouter();
@@ -105,7 +106,7 @@ onMounted(async () => {
     reviews.value = res.data.order_items.map(item => ({
       product_id: item.product_id,
       product_name: item.product_name,
-      image: item.product_image_url || 'https://via.placeholder.com/150',
+      image: item.product_image_url || 'https://placehold.co/150',
       size: item.size, 
       color: item.color,
       rating: 5,
@@ -120,7 +121,19 @@ onMounted(async () => {
 });
 
 const submitReviews = async () => {
-  if(!confirm('Gửi đánh giá này?')) return;
+  const result = await Swal.fire({
+    title: 'Xác nhận gửi?',
+    text: 'Bạn có chắc chắn muốn gửi những đánh giá này không?',
+    icon: 'question',
+    showCancelButton: true,
+    confirmButtonColor: '#A08B7A',
+    cancelButtonColor: '#d33',
+    confirmButtonText: 'Gửi đánh giá',
+    cancelButtonText: 'Hủy'
+  });
+
+  if (!result.isConfirmed) return;
+
   isSubmitting.value = true;
   try {
     await axios.post('/reviews', {
@@ -136,7 +149,7 @@ const submitReviews = async () => {
     isReviewed.value = true; 
     
   } catch (e) { 
-    alert('Lỗi khi gửi đánh giá, vui lòng thử lại.');
+    Swal.fire('Lỗi', 'Lỗi khi gửi đánh giá, vui lòng thử lại.', 'error');
   } finally {
     isSubmitting.value = false;
   }
@@ -201,7 +214,7 @@ const submitReviews = async () => {
 }
 
 .btn-home {
-    background: #000;
+    background: #A08B7A;
     color: #fff;
 }
 .btn-home:hover { background: #333; }
@@ -229,7 +242,7 @@ const submitReviews = async () => {
     background: #ffffff;
     padding: 2rem;
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-    border: 1px solid #000; /* Viền đen bao quanh khung chính */
+    border: 1px solid #E6E0D8; /* Viền đen bao quanh khung chính */
 }
 
 /* --- HEADER --- */
@@ -241,7 +254,7 @@ const submitReviews = async () => {
     font-size: 1.5rem;
     font-weight: 800;
     text-transform: uppercase;
-    color: #000;
+    color: #333333;
     margin-bottom: 0.5rem;
     letter-spacing: 1px;
 }
@@ -251,7 +264,7 @@ const submitReviews = async () => {
 }
 .divider {
     height: 4px;
-    background: #000;
+    background: #A08B7A;
     width: 60px;
     margin: 0 auto;
 }
@@ -278,7 +291,7 @@ const submitReviews = async () => {
     width: 80px;  /* CỐ ĐỊNH CHIỀU RỘNG */
     height: 80px; /* CỐ ĐỊNH CHIỀU CAO */
     flex-shrink: 0; /* Không cho co lại */
-    border: 1px solid #000;
+    border: 1px solid #E6E0D8;
     padding: 2px;
 }
 
@@ -296,7 +309,7 @@ const submitReviews = async () => {
 .product-name {
     font-size: 1.1rem;
     font-weight: 700;
-    color: #000;
+    color: #333333;
     text-transform: uppercase;
     line-height: 1.3;
 }
@@ -316,7 +329,7 @@ const submitReviews = async () => {
     font-size: 0.8rem;
     font-weight: 700;
     text-transform: uppercase;
-    color: #000;
+    color: #333333;
     display: block;
     margin-bottom: 0.5rem;
     letter-spacing: 0.5px;
@@ -354,7 +367,7 @@ const submitReviews = async () => {
     margin-left: 1rem;
     font-weight: bold;
     font-size: 0.9rem;
-    background: #000;
+    background: #A08B7A;
     color: #fff;
     padding: 2px 8px;
     text-transform: uppercase;
@@ -365,7 +378,7 @@ const submitReviews = async () => {
     width: 100%;
     padding: 1rem;
     font-size: 1rem;
-    border: 1px solid #000; /* Viền đen sắc nét */
+    border: 1px solid #E6E0D8; /* Viền đen sắc nét */
     border-radius: 0; /* Vuông vức */
     outline: none;
     background: #fdfdfd;
@@ -380,7 +393,7 @@ const submitReviews = async () => {
 /* --- NÚT GỬI --- */
 .submit-btn {
     width: 100%;
-    background-color: #000000; /* Nền ĐEN tuyệt đối */
+    background-color: #A08B7A; /* Nền ĐEN tuyệt đối */
     color: #ffffff;            /* Chữ TRẮNG tuyệt đối */
     font-size: 1.1rem;
     font-weight: 700;

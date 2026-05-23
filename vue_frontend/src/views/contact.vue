@@ -5,12 +5,12 @@
 
     <section class="card">
       <h2>Thông tin liên hệ</h2>
-      <p>FLORENTIC luôn sẵn sàng hỗ trợ bạn trong mọi thắc mắc về sản phẩm, đổi trả hoặc đơn hàng.</p>
+      <p>22.Décembre luôn sẵn sàng hỗ trợ bạn trong mọi thắc mắc về sản phẩm, đổi trả hoặc đơn hàng.</p>
 
       <div class="info-block">
         <div class="info-item">
           <span class="label">Email</span>
-          <span class="value">support@florentic.vn</span>
+          <span class="value">support@22decembre.vn</span>
         </div>
         <div class="info-item">
           <span class="label">Hotline</span>
@@ -59,7 +59,7 @@
   margin: 120px auto;
   padding: 0 20px;
   color: #111;
-  font-family: "Inter", sans-serif;
+  font-family: var(--font-body);
 }
 
 /* ===== TITLE ===== */
@@ -70,14 +70,14 @@
   letter-spacing: 2px;
   text-align: left;
   margin-bottom: 40px;
-  border-left: 6px solid #000;
+  border-left: 6px solid #A08B7A;
   padding-left: 16px;
 }
 
 /* ===== CARD BLOCK ===== */
 .card {
   background: #fff;
-  border: 2px solid #000;
+  border: 2px solid #E6E0D8;
   border-radius: 0;
   padding: 28px 30px;
   margin-bottom: 28px;
@@ -147,7 +147,7 @@ label {
 input,
 textarea {
   width: 100%;
-  border: 2px solid #000;
+  border: 2px solid #E6E0D8;
   border-radius: 0;
   padding: 10px 12px;
   font-size: 14px;
@@ -168,9 +168,9 @@ textarea {
 
 /* ===== SUBMIT BUTTON ===== */
 .submit-btn {
-  background: #000;
+  background: #A08B7A;
   color: #fff;
-  border: 2px solid #000;
+  border: 2px solid #A08B7A;
   padding: 12px 18px;
   font-size: 14px;
   font-weight: 700;
@@ -183,6 +183,6 @@ textarea {
 
 .submit-btn:hover {
   background: #fff;
-  color: #000;
+  color: #333333;
 }
 </style>

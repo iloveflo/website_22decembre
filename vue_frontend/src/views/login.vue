@@ -21,13 +21,32 @@
             <label class="form-label">MẬT KHẨU</label>
             <router-link to="/forgot-password" class="forgot-link">QUÊN MẬT KHẨU?</router-link>
           </div>
-          <input 
-            type="password" 
-            v-model="password" 
-            required 
-            placeholder="NHẬP MẬT KHẨU"
-            class="form-input"
-          />
+          <div style="position: relative;">
+            <input 
+              :type="showPassword ? 'text' : 'password'" 
+              v-model="password" 
+              required 
+              placeholder="NHẬP MẬT KHẨU"
+              class="form-input"
+              style="padding-right: 40px;"
+            />
+            <button 
+              type="button" 
+              @click="showPassword = !showPassword" 
+              style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; color: #666; display: flex; align-items: center; justify-content: center;"
+              tabindex="-1"
+              title="Ẩn/Hiện mật khẩu"
+            >
+              <svg v-if="!showPassword" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                <circle cx="12" cy="12" r="3"></circle>
+              </svg>
+              <svg v-else xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                <line x1="1" y1="1" x2="23" y2="23"></line>
+              </svg>
+            </button>
+          </div>
         </div>
 
         <div class="form-group">
@@ -89,6 +108,23 @@
         
       </form>
     </div>
+
+    <!-- Modal thông báo tài khoản bị xóa/khóa -->
+    <Teleport to="body">
+      <div v-if="showDeletedModal" class="locked-overlay">
+        <div class="locked-card">
+          <div class="locked-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+          </div>
+          <h3>TRUY CẬP BỊ TỪ CHỐI</h3>
+          <p>Tài khoản của bạn đã bị vô hiệu hóa hoặc tạm dừng hoạt động bởi Quản trị viên.</p>
+          <div class="locked-details">
+            Vui lòng liên hệ với bộ phận kỹ thuật hoặc Quản lý nhân sự để được hỗ trợ khôi phục tài khoản.
+          </div>
+          <button @click="showDeletedModal = false" class="btn-locked-close">ĐÃ HIỂU</button>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>
 
@@ -101,8 +137,10 @@ const router = useRouter()
 
 const email = ref('')
 const password = ref('')
+const showPassword = ref(false)
 const rememberMe = ref(false)
 const errorMessage = ref('')
+const showDeletedModal = ref(false)
 
 // --- BIẾN CHO CAPTCHA ---
 const captchaInput = ref('')
@@ -135,10 +173,12 @@ onMounted(async () => {
 
   if (socialToken) {
     localStorage.setItem('token', socialToken)
-    if (socialEmail) localStorage.setItem('rememberedEmail', socialEmail)
+    // Social login không liên quan đến "ghi nhớ đăng nhập" thủ công — xóa để tránh ô nhiễm
+    localStorage.removeItem('rememberedEmail')
+    localStorage.removeItem('rememberedMe')
     window.history.replaceState({}, document.title, window.location.pathname)
 
-    if (socialRole === 'admin') {
+    if (socialRole === 'admin' || socialRole === 'staff') {
       window.location.href = '/admin'
     } else {
       window.location.href = '/'
@@ -146,9 +186,11 @@ onMounted(async () => {
     return;
   }
 
-  // --- PHẦN 2: KIỂM TRA ĐĂNG NHẬP CŨ (GIỮ NGUYÊN) ---
+  // --- PHẦN 2: KIỂM TRA ĐĂNG NHẬP CŨ ---
   const token = localStorage.getItem('token')
-  const remembered = localStorage.getItem('rememberedEmail')
+  // Chỉ điền email & tick checkbox khi user đã bấm "ghi nhớ" rõ ràng từ lần trước
+  const isRemembered = localStorage.getItem('rememberedMe') === 'true'
+  const savedEmail = localStorage.getItem('rememberedEmail')
 
   if (token) {
     try {
@@ -156,21 +198,22 @@ onMounted(async () => {
         headers: { Authorization: `Bearer ${token}` }
       })
       const currentUser = res.data.user
-      if (currentUser.role === 'admin') {
+      if (currentUser.role === 'admin' || currentUser.role === 'staff') {
         window.location.href = '/admin'
       } else {
         window.location.href = '/'
       }
     } catch (err) {
-      console.log('Phiên đăng nhập hết hạn:', err)
+      // Token hết hạn — xóa token nhưng GIỮ rememberedEmail nếu user đã bật ghi nhớ
       localStorage.removeItem('token')
-      if (remembered) {
-        email.value = remembered
+      if (isRemembered && savedEmail) {
+        email.value = savedEmail
         rememberMe.value = true
       }
     }
-  } else if (remembered) {
-    email.value = remembered
+  } else if (isRemembered && savedEmail) {
+    // Chưa có token, nhưng user đã tick "ghi nhớ" từ trước → điền sẵn email
+    email.value = savedEmail
     rememberMe.value = true
   }
 })
@@ -190,18 +233,23 @@ const handleLogin = async () => {
 
     const userRole = response.data.user.role
     localStorage.setItem('token', response.data.token)
+    localStorage.setItem('user_role', userRole)
 
     if (response.data.expires_at) {
         localStorage.setItem('expires_at', response.data.expires_at);
     }
 
     if (rememberMe.value && userRole !== 'admin') {
+      // Lưu email VÀ flag xác nhận user đã bật ghi nhớ
       localStorage.setItem('rememberedEmail', email.value)
+      localStorage.setItem('rememberedMe', 'true')
     } else {
+      // Xóa sạch cả 2 khi user không chọn ghi nhớ
       localStorage.removeItem('rememberedEmail')
+      localStorage.removeItem('rememberedMe')
     }
 
-    if (userRole === 'admin') {
+    if (userRole === 'admin' || userRole === 'staff') {
       window.location.href = '/admin'
     } else {
       window.location.href = '/'
@@ -214,7 +262,9 @@ const handleLogin = async () => {
     fetchCaptcha(); 
     
     // Xử lý thông báo lỗi
-    if (error.response?.data?.errors?.captcha) {
+    if (error.response?.data?.code === 'ACCOUNT_DELETED') {
+      showDeletedModal.value = true
+    } else if (error.response?.data?.errors?.captcha) {
          // Lỗi riêng cho captcha (nếu backend trả về dạng errors array)
          errorMessage.value = error.response.data.errors.captcha[0];
     } else if (error.response?.data?.message) {
@@ -243,7 +293,7 @@ const loginWithFacebook = () => {
   justify-content: center;
   padding: 110px 20px;
   background-color: #fff;
-  font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  font-family: var(--font-body);
 }
 
 .login-container {
@@ -251,7 +301,7 @@ const loginWithFacebook = () => {
   max-width: 480px; /* Độ rộng vừa phải, chuẩn form login */
   background: #fff;
   /* Có thể thêm border bao quanh nếu thích kiểu thẻ bài */
-  /* border: 2px solid #000; padding: 40px; */ 
+  /* border: 2px solid #E6E0D8; padding: 40px; */ 
 }
 
 /* --- Typography --- */
@@ -262,7 +312,7 @@ const loginWithFacebook = () => {
   margin-bottom: 40px;
   letter-spacing: 4px;
   text-transform: uppercase;
-  color: #000;
+  color: #333333;
 }
 
 /* --- Inputs & Labels --- */
@@ -281,7 +331,7 @@ const loginWithFacebook = () => {
   font-size: 12px;
   font-weight: 700;
   letter-spacing: 1px;
-  color: #000;
+  color: #333333;
   text-transform: uppercase;
   display: block;
   margin-bottom: 8px; /* Khoảng cách với input */
@@ -293,7 +343,7 @@ const loginWithFacebook = () => {
   font-size: 14px;
   border: 1px solid #ccc; /* Viền xám mỏng ban đầu */
   background-color: #fff;
-  color: #000;
+  color: #333333;
   outline: none;
   transition: all 0.2s ease;
   
@@ -303,7 +353,7 @@ const loginWithFacebook = () => {
 
 /* Focus effect: Viền đen đậm */
 .form-input:focus {
-  border-color: #000;
+  border-color: #A08B7A;
   border-width: 1px; /* Hoặc 2px nếu muốn gắt hơn */
 }
 
@@ -324,7 +374,7 @@ const loginWithFacebook = () => {
 }
 
 .forgot-link:hover {
-  color: #000;
+  color: #333333;
 }
 
 /* --- Custom Checkbox (Vuông) --- */
@@ -368,13 +418,13 @@ const loginWithFacebook = () => {
 
 /* Khi hover */
 .custom-checkbox:hover input ~ .checkmark {
-  border-color: #000;
+  border-color: #333333;
 }
 
 /* Khi checked: Đổi nền thành đen */
 .custom-checkbox input:checked ~ .checkmark {
-  background-color: #000;
-  border-color: #000;
+  background-color: #A08B7A;
+  border-color: #A08B7A;
 }
 
 /* Dấu tích bên trong (tạo bằng CSS pseudo-element) */
@@ -411,25 +461,25 @@ const loginWithFacebook = () => {
 
 /* Nút Login: Đen chủ đạo */
 .btn-submit {
-  background-color: #000;
+  background-color: #A08B7A;
   color: #fff;
-  border: 2px solid #000;
+  border: 2px solid #A08B7A;
 }
 
 .btn-submit:hover {
   background-color: #fff;
-  color: #000;
+  color: #A08B7A;
 }
 
 /* Nút Register: Trắng chủ đạo */
 .btn-register {
   background-color: #fff;
-  color: #000;
-  border: 2px solid #000; /* Viền đen dày */
+  color: #333333;
+  border: 2px solid #E6E0D8; /* Viền đen dày */
 }
 
 .btn-register:hover {
-  background-color: #000;
+  background-color: #A08B7A;
   color: #fff;
 }
 
@@ -596,6 +646,93 @@ const loginWithFacebook = () => {
 
 .btn-reload:hover {
     background: #e0e0e0;
-    color: #000;
+    color: #333333;
+}
+/* CSS CHO MODAL TÀI KHOẢN BỊ KHÓA */
+.locked-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(8px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    padding: 20px;
+}
+
+.locked-card {
+    background: #fff;
+    width: 100%;
+    max-width: 450px;
+    padding: 40px;
+    text-align: center;
+    border-radius: 0;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+    animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes slideUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.locked-icon {
+    width: 60px;
+    height: 60px;
+    background: #fff5f5;
+    color: #e53e3e;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 24px;
+}
+
+.locked-icon svg {
+    width: 32px;
+    height: 32px;
+}
+
+.locked-card h3 {
+    font-size: 20px;
+    font-weight: 900;
+    color: #1a202c;
+    margin-bottom: 12px;
+    letter-spacing: 1px;
+}
+
+.locked-card p {
+    color: #4a5568;
+    line-height: 1.6;
+    margin-bottom: 20px;
+}
+
+.locked-details {
+    background: #f7fafc;
+    padding: 15px;
+    border: 1px solid #edf2f7;
+    font-size: 13px;
+    color: #718096;
+    margin-bottom: 30px;
+}
+
+.btn-locked-close {
+    width: 100%;
+    padding: 14px;
+    background: #1a202c;
+    color: #fff;
+    border: none;
+    font-weight: 700;
+    cursor: pointer;
+    letter-spacing: 2px;
+    transition: all 0.2s;
+}
+
+.btn-locked-close:hover {
+    background: #000;
 }
 </style>

@@ -39,11 +39,19 @@ class AuthController extends Controller
             'captcha.captcha_api' => 'Mã xác nhận không chính xác.',
         ]);
 
-        // 2. Kiểm tra User tồn tại
-        $user = User::where('email', $request->email)->first();
+        // 2. Kiểm tra User tồn tại (bao gồm cả tài khoản bị xóa mềm)
+        $user = User::withTrashed()->where('email', $request->email)->first();
 
         if (!$user) {
             return response()->json(['message' => 'Sai thông tin đăng nhập'], 404);
+        }
+
+        // Kiểm tra nếu tài khoản đã bị xóa (Soft Delete)
+        if ($user->trashed()) {
+            return response()->json([
+                'message' => 'Tài khoản của bạn đã bị vô hiệu hóa hoặc xóa bởi Quản trị viên.',
+                'code' => 'ACCOUNT_DELETED'
+            ], 403);
         }
 
         // 3. Kiểm tra Mật khẩu
@@ -51,9 +59,8 @@ class AuthController extends Controller
             return response()->json(['message' => 'Sai thông tin đăng nhập'], 401);
         }
 
-        // --- XỬ LÝ THỜI GIAN HẾT HẠN TOKEN (LOGIC MỚI Ở ĐÂY) ---
-        // Nếu là admin thì 5 tiếng (300 phút), còn user thường thì 1 tiếng (60 phút)
-        if ($user->role === 'admin') {
+        // Nếu là admin hoặc staff thì 5 tiếng (300 phút), còn user thường thì 1 tiếng (60 phút)
+        if ($user->role === 'admin' || $user->role === 'staff') {
             $expiresAt = now()->addHours(5);
             try {
                 PersonalAccessToken::where('expires_at', '<', now())->delete();
@@ -69,8 +76,8 @@ class AuthController extends Controller
         $tokenName = 'auth-token';
         $token = $user->createToken($tokenName, ['*'], $expiresAt)->plainTextToken;
 
-        // --- Xử lý Remember Me (Giữ nguyên logic của bạn) ---
-        if ($request->rememberMe && $user->role !== 'admin') {
+        // --- Xử lý Remember Me ---
+        if ($request->rememberMe && !in_array($user->role, ['admin', 'staff'])) {
             $user->remember_token = bin2hex(random_bytes(60));
             $user->save();
         }
@@ -243,8 +250,8 @@ class AuthController extends Controller
         ]);
         $encrypted = Crypt::encryptString($data);
 
-        // Lấy base URL hiện tại (scheme + host + port nếu có)
-        $baseUrl = $request->getSchemeAndHttpHost(); // ví dụ: http://localhost:8000 hoặc https://example.com
+        // Lấy base URL hiện tại từ biến môi trường
+        $baseUrl = rtrim(env('FRONTEND_URL', config('app.url')), '/');
 
         // Tạo link reset đầy đủ
         $resetLink = $baseUrl . '/reset-password?code=' . urlencode($encrypted);
@@ -252,7 +259,7 @@ class AuthController extends Controller
         // Gửi email
         Mail::send('reset_password', ['link' => $resetLink], function ($message) use ($request) {
             $message->to($request->email)
-                ->subject('Khôi phục mật khẩu - FLORENTIC');
+                ->subject('Khôi phục mật khẩu - 22.DÉCEMBRE');
         });
 
         return response()->json(['message' => 'Email khôi phục đã được gửi'], 200);
@@ -343,7 +350,8 @@ class AuthController extends Controller
         } catch (Exception $e) {
             dd($e->getMessage());
             // Redirect về trang login của Vue kèm thông báo lỗi trên URL
-            return redirect('/login?error=' . urlencode('Đăng nhập Google thất bại'));
+            $frontendUrl = env('FRONTEND_URL', url('/')) . '/login';
+            return redirect($frontendUrl . '?error=' . urlencode('Đăng nhập Google thất bại'));
         }
     }
 
@@ -365,7 +373,8 @@ class AuthController extends Controller
             return $this->handleSocialCallback($facebookUser, 'facebook');
         } catch (Exception $e) {
             dd($e->getMessage());
-            return redirect('/login?error=' . urlencode('Đăng nhập Facebook thất bại'));
+            $frontendUrl = env('FRONTEND_URL', url('/')) . '/login';
+            return redirect($frontendUrl . '?error=' . urlencode('Đăng nhập Facebook thất bại'));
         }
     }
 
@@ -376,8 +385,8 @@ class AuthController extends Controller
         $user = $this->_registerOrLoginUser($socialUser, $provider);
 
         // 2. --- [LOGIC MỚI] Tính toán thời gian & Dọn rác ---
-        if ($user->role === 'admin') {
-            // Admin: 5 tiếng
+        if ($user->role === 'admin' || $user->role === 'staff') {
+            // Admin/Staff: 5 tiếng
             $expiresAt = now()->addHours(5);
 
             // Ké tính năng dọn dẹp rác (giống hàm Login)
@@ -405,11 +414,8 @@ class AuthController extends Controller
         // Lưu ý: Thường các biến boolean gửi qua URL sẽ thành chuỗi "true"/"false"
         // hoặc "1"/"0". FE cần parse cẩn thận.
 
-        // Nếu chạy local Vue dev:
-        // $frontendUrl = 'http://localhost:5173/auth/callback'; 
-
-        // Nếu chạy production (chung domain):
-        $frontendUrl = '/login';
+        // Lấy frontend URL từ file .env (mặc định là http://localhost:8000)
+        $frontendUrl = env('FRONTEND_URL', url('/')) . '/login';
 
         $queryParams = http_build_query([
             'token'         => $token,

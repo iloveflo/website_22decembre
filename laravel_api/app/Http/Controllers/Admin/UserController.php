@@ -40,11 +40,6 @@ class UserController extends Controller
             $query->where('role', $request->role);
         }
 
-        // Filter by status
-        if ($request->status) {
-            $query->where('status', $request->status);
-        }
-
         // Only select the fields we need for the admin listing
         // Pagination 10 per page
         $users = $query->select('id', 'avatar', 'username', 'email', 'full_name', 'role', 'created_at')
@@ -63,7 +58,9 @@ class UserController extends Controller
     // 2. Xem chi tiết user
     public function show($id)
     {
-        $user = User::with('orders', 'reviews')->findOrFail($id);
+        $user = User::with(['orders' => function($q) {
+            $q->with('orderItems')->orderBy('created_at', 'desc');
+        }, 'reviews'])->findOrFail($id);
 
         // Decrypt phone and address if they are encrypted
         $decryptedPhone = $user->phone;
@@ -127,10 +124,10 @@ class UserController extends Controller
     {
         $user = User::findOrFail($id);
 
-        // Only super-admin can update other admin accounts
+        // Only super-admin can update other administrative accounts (admin/staff)
         $current = $request->user();
-        if ($user->role === 'admin' && $current && $current->email !== 'admin@example.com') {
-            return response()->json(['message' => 'Bạn không có quyền sửa tài khoản admin khác'], 403);
+        if (in_array($user->role, ['admin', 'staff']) && $current && $current->email !== 'admin@example.com') {
+            return response()->json(['message' => 'Bạn không có quyền sửa tài khoản quản trị khác'], 403);
         }
 
         $request->validate([
@@ -204,7 +201,7 @@ class UserController extends Controller
             'email' => ['required','email', Rule::unique('users','email')],
             'password' => ['required','string','min:6'],
             'full_name' => 'required|string|max:100',
-            'role' => 'nullable|in:admin,user',
+            'role' => 'nullable|in:staff,user',
             'phone'     => ['nullable', 'string', 'max:10', Rule::unique('users', 'phone')],
             'address' => 'nullable|string|max:255',
             'avatar' => 'nullable|image|max:2048',
@@ -271,20 +268,7 @@ class UserController extends Controller
 
     }
 
-    // 4. Thay đổi trạng thái (Active/Inactive/Banned)
-    public function changeStatus(Request $request, $id)
-    {
-        $user = User::findOrFail($id);
 
-        $request->validate([
-            'status' => 'required|in:active,inactive,banned'
-        ]);
-
-        $user->status = $request->status;
-        $user->save();
-
-        return response()->json(['message' => 'Cập nhật trạng thái thành công', 'status' => $user->status]);
-    }
 
     // 5. Xem đơn hàng user
     public function orders($id)
@@ -310,10 +294,10 @@ class UserController extends Controller
             return response()->json(['message' => 'Không thể xóa chính bạn'], 403);
         }
 
-        // Only super-admin can delete admin accounts
+        // Only super-admin can delete other administrative accounts (admin/staff)
         $current = $request->user();
-        if ($user->role === 'admin' && $current && $current->email !== 'admin@example.com') {
-            return response()->json(['message' => 'Bạn không có quyền xóa tài khoản admin khác'], 403);
+        if (in_array($user->role, ['admin', 'staff']) && $current && $current->email !== 'admin@example.com') {
+            return response()->json(['message' => 'Bạn không có quyền xóa tài khoản quản trị khác'], 403);
         }
 
         $user->delete();

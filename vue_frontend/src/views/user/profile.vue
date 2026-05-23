@@ -122,6 +122,7 @@
 
 <script>
 import axios from 'axios';
+import Swal from 'sweetalert2';
 
 export default {
   data() {
@@ -190,7 +191,7 @@ export default {
         }
         
         // Ưu tiên 3: Ảnh mặc định
-        return 'https://via.placeholder.com/150?text=Avatar'; 
+        return 'https://placehold.co/150?text=Avatar'; 
     },
 
     // 3. Xử lý khi chọn file từ máy tính
@@ -200,7 +201,7 @@ export default {
 
         // Validate client size (2MB)
         if (file.size > 2 * 1024 * 1024) {
-            alert("File quá lớn! Vui lòng chọn ảnh dưới 2MB.");
+            Swal.fire('Lỗi', "File quá lớn! Vui lòng chọn ảnh dưới 2MB.", 'error');
             return;
         }
 
@@ -214,7 +215,7 @@ export default {
       // Validate Phone Client-side
       const phoneRegex = /^\d{10}$/;
       if (!this.user.phone || !phoneRegex.test(this.user.phone)) {
-        alert('Số điện thoại không hợp lệ! Vui lòng nhập đúng 10 chữ số.');
+        Swal.fire('Cảnh báo', 'Số điện thoại không hợp lệ! Vui lòng nhập đúng 10 chữ số.', 'warning');
         return;
       }
 
@@ -240,7 +241,7 @@ export default {
             }
         });
 
-        alert(response.data.message);
+        Swal.fire('Thành công', response.data.message || 'Cập nhật thành công', 'success');
 
         // Reset trạng thái edit
         this.isPhoneEditable = false;
@@ -261,9 +262,9 @@ export default {
         if (error.response && error.response.data.errors) {
           // Lấy lỗi đầu tiên để hiển thị cho gọn
           const firstErrorKey = Object.keys(error.response.data.errors)[0];
-          alert(error.response.data.errors[firstErrorKey][0]);
+          Swal.fire('Lỗi', error.response.data.errors[firstErrorKey][0], 'error');
         } else {
-          alert('Có lỗi xảy ra, vui lòng thử lại.');
+          Swal.fire('Lỗi', 'Có lỗi xảy ra, vui lòng thử lại.', 'error');
         }
       }
     }
@@ -280,20 +281,20 @@ export default {
     max-width: 900px;
     margin: 120px auto 50px; /* margin-top 120px để né header, tạo khoảng trắng nghệ thuật */
     font-family: 'Inter', 'Helvetica Neue', Arial, sans-serif;
-    color: #000;
+    color: #333333;
 }
 
 /* --- CARD STYLE (KHUNG BAO) --- */
 .card {
     background: #fff;
-    border: 1px solid #000; /* Viền đen mảnh, sắc nét */
+    border: 1px solid #E6E0D8; /* Viền đen mảnh, sắc nét */
     border-radius: 0; /* Vuông vức, không bo góc */
     box-shadow: none; /* Bỏ đổ bóng để phẳng hoàn toàn */
 }
 
 .card-header {
     padding: 40px 40px 20px;
-    border-bottom: 1px solid #000;
+    border-bottom: 1px solid #E6E0D8;
 }
 
 .card-header h3 {
@@ -332,7 +333,7 @@ export default {
     width: 120px;
     height: 120px;
     object-fit: cover;
-    border: 1px solid #000; /* Viền ảnh đen */
+    border: 1px solid #E6E0D8; /* Viền ảnh đen */
     border-radius: 0; /* Ảnh vuông */
     padding: 5px; /* Khoảng cách giữa ảnh và viền */
     background: #fff;
@@ -346,8 +347,8 @@ export default {
 
 .btn-select-img {
     background: #fff;
-    color: #000;
-    border: 1px solid #000;
+    color: #333333;
+    border: 1px solid #E6E0D8;
     padding: 8px 20px;
     font-size: 12px;
     text-transform: uppercase;
@@ -358,7 +359,7 @@ export default {
 }
 
 .btn-select-img:hover {
-    background: #000;
+    background: #A08B7A;
     color: #fff;
 }
 
@@ -387,7 +388,7 @@ export default {
 .form-group label {
     font-size: 13px;
     font-weight: 600;
-    color: #000;
+    color: #333333;
     text-transform: uppercase;
     letter-spacing: 0.5px;
 }
@@ -406,13 +407,13 @@ export default {
     border: 1px solid #ccc;
     border-radius: 0; /* Input vuông */
     background: #fff;
-    color: #000;
+    color: #333333;
     transition: border-color 0.2s;
 }
 
 .form-control:focus {
     outline: none;
-    border-color: #000; /* Focus màu đen */
+    border-color: #333333; /* Focus màu đen */
 }
 
 .form-control.read-only {
@@ -429,7 +430,7 @@ export default {
 
 .action-link {
     font-size: 12px;
-    color: #000;
+    color: #333333;
     text-decoration: underline;
     text-underline-offset: 3px;
     white-space: nowrap;
@@ -438,7 +439,7 @@ export default {
 }
 
 .action-link:hover {
-    background: #000;
+    background: #A08B7A;
     color: #fff;
     text-decoration: none;
     padding: 2px 5px;
@@ -448,14 +449,14 @@ export default {
     margin-top: 50px;
     display: flex;
     justify-content: flex-end;
-    border-top: 1px solid #000; /* Đường gạch ngang trên nút lưu */
+    border-top: 1px solid #E6E0D8; /* Đường gạch ngang trên nút lưu */
     padding-top: 20px;
 }
 
 .btn-save {
-    background: #000;
+    background: #A08B7A;
     color: #fff;
-    border: 1px solid #000;
+    border: 1px solid #E6E0D8;
     padding: 12px 40px;
     font-size: 14px;
     font-weight: 600;
@@ -468,7 +469,7 @@ export default {
 
 .btn-save:hover {
     background: #fff;
-    color: #000;
+    color: #333333;
 }
 
 .btn-save:disabled {

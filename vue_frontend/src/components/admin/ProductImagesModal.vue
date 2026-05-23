@@ -69,6 +69,7 @@
 <script setup>
 import { ref, watch, onMounted } from 'vue'
 import axios from 'axios'
+import Swal from 'sweetalert2'
 
 const props = defineProps({
   show: { type: Boolean, default: false },
@@ -128,24 +129,34 @@ const uploadImage = async () => {
       e.response?.data?.errors &&
       Object.values(e.response.data.errors)[0]?.[0]
 
-    alert(firstError || e.response?.data?.message || 'Upload ảnh thất bại')
+    Swal.fire('Lỗi', firstError || e.response?.data?.message || 'Upload ảnh thất bại', 'error')
   } finally {
     uploading.value = false
   }
 }
 
 const remove = async (id) => {
-  if (!confirm('Xóa ảnh này?')) return
+  const result = await Swal.fire({
+    title: 'Xóa ảnh này?',
+    text: 'Bạn không thể hoàn tác sau khi xóa.',
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonText: 'Xóa',
+    cancelButtonText: 'Hủy'
+  });
+  if (!result.isConfirmed) return;
+  
   try {
     // Thay đổi từ axios.delete sang axios.post
     await axios.post(`/admin/products/images/${id}`, {
         _method: 'DELETE' // Báo cho server Laravel biết đây là lệnh DELETE
     });
+    Swal.fire('Đã xóa', 'Ảnh đã được xóa', 'success');
     await fetchImages()
     emit('changed')
   } catch (e) {
     console.error('Xóa ảnh thất bại', e)
-    alert('Xóa ảnh thất bại')
+    Swal.fire('Lỗi', 'Xóa ảnh thất bại', 'error')
   }
 }
 
@@ -154,11 +165,12 @@ const setPrimary = async (id) => {
     await axios.post(`/admin/products/images/${id}/primary`, {
       _method: 'PATCH'
     })
+    Swal.fire('Thành công', 'Đã đặt làm ảnh chính', 'success')
     await fetchImages()
     emit('changed')
   } catch (e) {
     console.error('Đặt ảnh chính thất bại', e)
-    alert('Đặt ảnh chính thất bại')
+    Swal.fire('Lỗi', 'Đặt ảnh chính thất bại', 'error')
   }
 }
 
@@ -219,7 +231,7 @@ onMounted(() => {
   margin: 0;
   font-size: 24px;
   font-weight: 700;
-  color: #000;
+  color: #333333;
   letter-spacing: -0.5px;
 }
 
@@ -241,8 +253,8 @@ onMounted(() => {
 
 .btn-close:hover {
   background: #f5f5f5;
-  border-color: #000;
-  color: #000;
+  border-color: #333333;
+  color: #333333;
 }
 
 /* ============== MODAL BODY ============== */
@@ -309,7 +321,7 @@ onMounted(() => {
   width: 18px;
   height: 18px;
   cursor: pointer;
-  accent-color: #000;
+  accent-color: #333333;
 }
 
 /* ============== IMAGES GRID ============== */
@@ -331,7 +343,7 @@ onMounted(() => {
 }
 
 .image-item.primary {
-  border-color: #000;
+  border-color: #333333;
   border-width: 3px;
 }
 
@@ -356,7 +368,7 @@ onMounted(() => {
 .badge-primary {
   display: inline-block;
   padding: 6px 12px;
-  background: #000;
+  background: #A08B7A;
   color: #fff;
   font-size: 11px;
   font-weight: 600;
@@ -402,9 +414,9 @@ onMounted(() => {
 }
 
 .btn.primary {
-  background: #000;
+  background: #A08B7A;
   color: #fff;
-  border-color: #000;
+  border-color: #333333;
   font-weight: 600;
 }
 

@@ -20,10 +20,12 @@ axios.interceptors.request.use(config => {
 axios.interceptors.response.use(
   response => response,
   error => {
-    if (error.response?.status === 401) {
+    const isLoginRequest = error.config && error.config.url && error.config.url.includes('/login');
+    
+    if (error.response?.status === 401 && !isLoginRequest) {
       // Clear token and redirect to login if unauthorized
       localStorage.removeItem('token')
-      router.push('/')
+      router.push('/login')
     }
     return Promise.reject(error)
   }

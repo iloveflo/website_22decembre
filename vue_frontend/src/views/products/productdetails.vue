@@ -375,7 +375,7 @@ const fetchProduct = async (slugValue, page = 1) => {
       } else if (data.primary_image) {
         mainImage.value = getImageSrc({ image_path: data.primary_image });
       } else {
-        mainImage.value = "/placeholder.jpg";
+        mainImage.value = "https://placehold.co/300x300?text=No+Image";
       }
 
       // Reset các lựa chọn
@@ -445,14 +445,14 @@ const formatPrice = (price) =>
   Number(price).toLocaleString("vi-VN") + "₫";
 
 const getImageSrc = (img) => {
-  if (!img) return "/placeholder.jpg";
+  if (!img) return "https://placehold.co/300x300?text=No+Image";
   if (img.url) return img.url;
   if (img.image_path) {
     if (img.image_path.startsWith("http")) return img.image_path;
     if (img.image_path.startsWith("/")) return img.image_path;
     return `/storage/${img.image_path}`;
   }
-  return "/placeholder.jpg";
+  return "https://placehold.co/300x300?text=No+Image";
 };
 
 const validImages = computed(() =>
@@ -510,65 +510,66 @@ const getSessionId = () => {
 };
 
 // SIZE & COLOR OPTIONS
+const extractAttribute = (v, keys) => {
+  if (!v || !v.variant_attributes) return null;
+  for (const key of keys) {
+    if (v.variant_attributes[key]) return v.variant_attributes[key];
+  }
+  return null;
+};
+
 const sizeOptions = computed(() => {
   if (!product.value) return [];
-  if (product.value.variants && product.value.variants.length) {
-    const s = new Set();
-    product.value.variants.forEach((v) => v.size && s.add(v.size));
-    return Array.from(s);
-  }
-  if (product.value.sizes && product.value.sizes.length) {
-    const s = new Set();
-    product.value.sizes.forEach((v) => v.size && s.add(v.size));
-    return Array.from(s);
-  }
-  return [];
+  const s = new Set();
+  const variants = product.value.variants || [];
+  variants.forEach((v) => {
+    const val = extractAttribute(v, ['Size', 'size', 'Kích thước']);
+    if (val) s.add(val);
+  });
+  return Array.from(s);
 });
 
 const colorOptions = computed(() => {
   if (!product.value) return [];
-  if (product.value.variants && product.value.variants.length) {
-    const map = new Map();
-    product.value.variants.forEach((v) => {
-      const key = v.color_name || v.color_code;
-      if (!key) return;
-      if (!map.has(key)) map.set(key, { name: v.color_name, code: v.color_code });
-    });
-    return Array.from(map.values());
-  }
-  if (product.value.colors && product.value.colors.length) {
-    const map = new Map();
-    product.value.colors.forEach((c) => {
-      const key = c.color_name || c.color_code;
-      if (!key) return;
-      if (!map.has(key)) map.set(key, { name: c.color_name, code: c.color_code });
-    });
-    return Array.from(map.values());
-  }
-  return [];
+  const map = new Map();
+  const variants = product.value.variants || [];
+  variants.forEach((v) => {
+    const val = extractAttribute(v, ['Màu', 'Màu sắc', 'Color', 'color']);
+    if (val && !map.has(val)) {
+      // Vì không còn color_code trong DB, ta có thể dùng map màu cơ bản hoặc để trống code
+      const colorMap = {
+        'Đen': '#000000', 'Trắng': '#FFFFFF', 'Đỏ': '#FF0000', 'Xanh': '#0000FF',
+        'Vàng': '#FFFF00', 'Xám': '#808080', 'Hồng': '#FFC0CB', 'Cam': '#FFA500'
+      };
+      map.set(val, { name: val, code: colorMap[val] || '#EEEEEE' });
+    }
+  });
+  return Array.from(map.values());
 });
 
-const replaceImage = (e) => { e.target.src = '/placeholder.jpg' }
+const replaceImage = (e) => { e.target.src = 'https://placehold.co/300x300?text=No+Image' }
 const increaseQty = () => { quantity.value++; };
 const decreaseQty = () => { if (quantity.value > 1) quantity.value--; };
 
 // CART LOGIC
 const getAvailableStock = (p, size, color) => {
-  if (!p) return null
+  if (!p) return null;
   if (p.variants && p.variants.length) {
     const variant = p.variants.find(v => {
-      const sameSize = !size || v.size === size
-      const sameColor = !color || v.color_name === color || v.color_code === color
-      return sameSize && sameColor
-    })
-    if (!variant) return 0
-    return Number(variant.quantity ?? 0)
+      const vSize = extractAttribute(v, ['Size', 'size', 'Kích thước']);
+      const vColor = extractAttribute(v, ['Màu', 'Màu sắc', 'Color', 'color']);
+      const sameSize = !size || vSize === size;
+      const sameColor = !color || vColor === color;
+      return sameSize && sameColor;
+    });
+    if (!variant) return 0;
+    return Number(variant.quantity ?? 0);
   }
   if (typeof p.stock_quantity !== 'undefined') {
-    return Number(p.stock_quantity)
+    return Number(p.stock_quantity);
   }
-  return null
-}
+  return null;
+};
 
 const addToCart = async () => {
   if (!product.value) return
@@ -595,8 +596,10 @@ const addToCart = async () => {
     const payload = {
       product_id: product.value.id,
       quantity: quantity.value,
-      size: selectedSize.value || null,
-      color: selectedColor.value || null,
+      attributes: {
+        'Size': selectedSize.value,
+        'Màu': selectedColor.value
+      },
       session_id: sessionId,
     }
     const config = { headers: {} }
@@ -689,7 +692,7 @@ const openQuickView = async (card) => {
     } else if (res.data.primary_image) {
       quickMainImage.value = getImageSrc({ image_path: res.data.primary_image });
     } else {
-      quickMainImage.value = "/placeholder.jpg";
+      quickMainImage.value = "https://placehold.co/300x300?text=No+Image";
     }
 
     quickSelectedSize.value = "";
@@ -707,27 +710,31 @@ const closeQuickView = () => { showQuickView.value = false; };
 const quickSizeOptions = computed(() => {
   const p = quickViewProduct.value;
   if (!p) return [];
-  if (p.variants && p.variants.length) {
-    const s = new Set();
-    p.variants.forEach((v) => v.size && s.add(v.size));
-    return Array.from(s);
-  }
-  return [];
+  const s = new Set();
+  const variants = p.variants || [];
+  variants.forEach((v) => {
+    const val = extractAttribute(v, ['Size', 'size', 'Kích thước']);
+    if (val) s.add(val);
+  });
+  return Array.from(s);
 });
 
 const quickColorOptions = computed(() => {
   const p = quickViewProduct.value;
   if (!p) return [];
-  if (p.variants && p.variants.length) {
-    const map = new Map();
-    p.variants.forEach((v) => {
-      const key = v.color_name || v.color_code;
-      if (!key) return;
-      if (!map.has(key)) map.set(key, { name: v.color_name, code: v.color_code });
-    });
-    return Array.from(map.values());
-  }
-  return [];
+  const map = new Map();
+  const variants = p.variants || [];
+  variants.forEach((v) => {
+    const val = extractAttribute(v, ['Màu', 'Màu sắc', 'Color', 'color']);
+    if (val && !map.has(val)) {
+      const colorMap = {
+        'Đen': '#000000', 'Trắng': '#FFFFFF', 'Đỏ': '#FF0000', 'Xanh': '#0000FF',
+        'Vàng': '#FFFF00', 'Xám': '#808080', 'Hồng': '#FFC0CB', 'Cam': '#FFA500'
+      };
+      map.set(val, { name: val, code: colorMap[val] || '#EEEEEE' });
+    }
+  });
+  return Array.from(map.values());
 });
 
 const increaseQuickQty = () => { quickQuantity.value++; };
@@ -754,8 +761,10 @@ const addQuickToCart = async () => {
     const payload = {
       product_id: quickViewProduct.value.id,
       quantity: quickQuantity.value,
-      size: quickSelectedSize.value || null,
-      color: quickSelectedColor.value || null,
+      attributes: {
+        'Size': quickSelectedSize.value,
+        'Màu': quickSelectedColor.value
+      },
       session_id: sessionId,
     }
     const config = { headers: {} }
@@ -808,8 +817,8 @@ const showToast = (msg) => {
   padding: 120px 32px 60px;
   /* giảm padding + trái/phải nhỏ lại */
   background: #ffffff;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  color: #000000;
+  
+  color: #333333;
 }
 
 /* ================================
@@ -840,7 +849,7 @@ const showToast = (msg) => {
   width: 100%;
   aspect-ratio: 3 / 4;
   /* Tỉ lệ 3:4 cố định giống Canifa */
-  border: 2px solid #000000;
+  border: 2px solid #E6E0D8;
   background: #f7f7f7;
   overflow: hidden;
   cursor: zoom-in;
@@ -854,7 +863,7 @@ const showToast = (msg) => {
   width: 100%;
   height: 520px;
   aspect-ratio: 3 / 4;
-  border: 2px solid #000000;
+  border: 2px solid #E6E0D8;
   background: #f7f7f7;
   overflow: hidden;
   cursor: zoom-in;
@@ -891,7 +900,7 @@ const showToast = (msg) => {
   width: 100%;
   aspect-ratio: 1;
   object-fit: cover;
-  border: 1px solid #000000;
+  border: 1px solid #E6E0D8;
   background: #fff;
   cursor: pointer;
   opacity: 0.5;
@@ -926,7 +935,7 @@ const showToast = (msg) => {
   line-height: 1.25;
   margin: 0 0 4px;
   text-transform: uppercase;
-  border-left: 4px solid #000000;
+  border-left: 4px solid #A08B7A;
   padding-left: 14px;
 }
 
@@ -941,12 +950,12 @@ const showToast = (msg) => {
   font-size: 22px;
   font-weight: 600;
   padding: 14px 0;
-  border-top: 1px solid #000000;
-  border-bottom: 1px solid #000000;
+  border-top: 1px solid #E6E0D8;
+  border-bottom: 1px solid #E6E0D8;
 }
 
 .sale-price {
-  color: #000000;
+  color: #333333;
 }
 
 .original-price {
@@ -998,7 +1007,7 @@ const showToast = (msg) => {
 .size-btn {
   min-width: 44px;
   height: 36px;
-  border: 1px solid #000000;
+  border: 1px solid #E6E0D8;
   background: #ffffff;
   font-size: 12px;
   font-weight: 500;
@@ -1008,13 +1017,13 @@ const showToast = (msg) => {
 }
 
 .size-btn:hover {
-  background: #000000;
+  background: #A08B7A;
   color: #ffffff;
   transform: translateY(-1px);
 }
 
 .size-btn.active {
-  background: #000000;
+  background: #A08B7A;
   color: #ffffff;
   box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.2);
 }
@@ -1032,7 +1041,7 @@ const showToast = (msg) => {
 .color-circle {
   width: 26px;
   height: 26px;
-  border: 1px solid #000000;
+  border: 1px solid #E6E0D8;
   cursor: pointer;
   transition: all 0.2s ease;
 }
@@ -1052,7 +1061,7 @@ const showToast = (msg) => {
 
 .qty-box {
   display: inline-flex;
-  border: 1px solid #000000;
+  border: 1px solid #E6E0D8;
   width: fit-content;
 }
 
@@ -1070,15 +1079,15 @@ const showToast = (msg) => {
 }
 
 .qty-box button:first-child {
-  border-right: 1px solid #000000;
+  border-right: 1px solid #E6E0D8;
 }
 
 .qty-box button:last-child {
-  border-left: 1px solid #000000;
+  border-left: 1px solid #A08B7A;
 }
 
 .qty-box button:hover {
-  background: #000000;
+  background: #A08B7A;
   color: #ffffff;
 }
 
@@ -1113,7 +1122,7 @@ const showToast = (msg) => {
 .add-cart-btn {
   width: 100%;
   height: 56px;
-  background: #000000;
+  background: #A08B7A;
   color: #ffffff;
   border: none;
   font-size: 14px;
@@ -1149,12 +1158,12 @@ const showToast = (msg) => {
   text-transform: uppercase;
   letter-spacing: 1px;
   margin: 0 0 24px 0;
-  border-left: 4px solid #000000;
+  border-left: 4px solid #A08B7A;
   padding-left: 14px;
 }
 
 .review-card {
-  border: 1px solid #000000;
+  border: 1px solid #E6E0D8;
   padding: 16px;
   margin-bottom: 12px;
   transition: all 0.2s ease;
@@ -1306,7 +1315,7 @@ const showToast = (msg) => {
 }
 
 .accordion-header span:first-child {
-  color: #000;
+  color: #333333;
 }
 
 .toggle-icon {
@@ -1358,7 +1367,7 @@ const showToast = (msg) => {
   width: 26px;
   height: 26px;
   border-radius: 999px;
-  border: 1px solid #000;
+  border: 1px solid #E6E0D8;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1496,7 +1505,7 @@ const showToast = (msg) => {
   text-transform: uppercase;
   letter-spacing: 1px;
   margin: 0;
-  border-left: 4px solid #000;
+  border-left: 4px solid #A08B7A;
   padding-left: 14px;
 }
 
@@ -1510,7 +1519,7 @@ const showToast = (msg) => {
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  border: 1px solid #000;
+  border: 1px solid #E6E0D8;
   background: #fff;
   cursor: pointer;
   font-size: 16px;
@@ -1521,7 +1530,7 @@ const showToast = (msg) => {
 }
 
 .related-arrow:hover {
-  background: #000;
+  background: #A08B7A;
   color: #fff;
 }
 
@@ -1628,7 +1637,7 @@ const showToast = (msg) => {
   position: absolute;
   top: 10px;
   right: 10px;
-  background: #000000;
+  background: #A08B7A;
   color: #ffffff;
   font-size: 10px;
   padding: 6px 10px;
@@ -1647,7 +1656,7 @@ const showToast = (msg) => {
 .product-name {
   font-size: 16px;
   font-weight: 500;
-  color: #000;
+  color: #333333;
   margin: 0 0 10px 0;
   line-height: 1.5;
   min-height: 48px;
@@ -1701,26 +1710,26 @@ const showToast = (msg) => {
   font-size: 11px;
   letter-spacing: 1.8px;
   text-transform: uppercase;
-  border: 1px solid #000;
+  border: 1px solid #E6E0D8;
   background: #ffffff;
-  color: #000000;
+  color: #333333;
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
 .product-actions .quick-view-btn:hover {
-  background: #000000;
+  background: #A08B7A;
   color: #ffffff;
 }
 
 .product-actions .detail-btn {
-  background: #000000;
+  background: #A08B7A;
   color: #ffffff;
 }
 
 .product-actions .detail-btn:hover {
   background: #ffffff;
-  color: #000000;
+  color: #333333;
 }
 
 @media (max-width: 768px) {
@@ -1764,7 +1773,7 @@ const showToast = (msg) => {
   border-radius: 999px;
   border: none;
   background: #f4f4f4;
-  color: #000;
+  color: #333333;
   font-size: 20px;
   line-height: 1;
   cursor: pointer;
@@ -1774,7 +1783,7 @@ const showToast = (msg) => {
 }
 
 .modal-close:hover {
-  background: #000;
+  background: #A08B7A;
   color: #fff;
 }
 
@@ -1824,7 +1833,7 @@ const showToast = (msg) => {
 }
 
 .modal-image .thumb.active {
-  border-color: #000;
+  border-color: #333333;
 }
 
 /* cột thông tin */
@@ -1838,7 +1847,7 @@ const showToast = (msg) => {
   font-size: 20px;
   font-weight: 500;
   margin: 0;
-  color: #000;
+  color: #333333;
 }
 
 /* giá */
@@ -1916,11 +1925,11 @@ const showToast = (msg) => {
 
 .color-option:hover {
   transform: translateY(-1px);
-  border-color: #000;
+  border-color: #333333;
 }
 
 .color-option.active {
-  border-color: #000;
+  border-color: #333333;
   box-shadow: 0 0 0 1px #000;
 }
 
@@ -1938,20 +1947,20 @@ const showToast = (msg) => {
   border-radius: 4px;
   border: 1px solid #ddd;
   background: #fff;
-  color: #000;
+  color: #333333;
   font-size: 14px;
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
 .modal-size-btn:hover {
-  border-color: #000;
+  border-color: #333333;
 }
 
 .modal-size-btn.active {
-  background: #000;
+  background: #A08B7A;
   color: #fff;
-  border-color: #000;
+  border-color: #333333;
 }
 
 /* link hướng dẫn size */
@@ -1999,7 +2008,7 @@ const showToast = (msg) => {
   margin-top: 18px;
   width: 100%;
   padding: 13px 20px;
-  background: #000;
+  background: #A08B7A;
   color: #fff;
   border: none;
   text-transform: uppercase;

@@ -125,7 +125,7 @@
           </div>
           <div class="contact-item">
             <span class="contact-label">Email:</span>
-            <span class="contact-value">shipping@florentic.com</span>
+            <span class="contact-value">shipping@22decembre.com</span>
           </div>
           <div class="contact-item">
             <span class="contact-label">Thời gian:</span>
@@ -209,13 +209,13 @@ const policyLeft = [
     id: 2,
     number: '02',
     title: 'ĐÓNG GÓI CHUẨN MỰC',
-    content: 'Sản phẩm được đóng gói cẩn thận trong hộp FLORENTIC cao cấp với túi chống sốc, đảm bảo nguyên vẹn khi đến tay khách hàng.'
+    content: 'Sản phẩm được đóng gói cẩn thận trong hộp 22.Décembre cao cấp với túi chống sốc, đảm bảo nguyên vẹn khi đến tay khách hàng.'
   },
   {
     id: 3,
     number: '03',
     title: 'BẢO HIỂM VẬN CHUYỂN',
-    content: 'Tất cả đơn hàng đều được bảo hiểm 100% giá trị. FLORENTIC chịu trách nhiệm với mọi rủi ro trong quá trình vận chuyển.'
+    content: 'Tất cả đơn hàng đều được bảo hiểm 100% giá trị. 22.Décembre chịu trách nhiệm với mọi rủi ro trong quá trình vận chuyển.'
   }
 ];
 
@@ -242,8 +242,8 @@ const policyRight = [
 
 const importantNotes = [
   'Thời gian giao hàng có thể kéo dài hơn trong các dịp lễ, Tết hoặc do ảnh hưởng thời tiết, thiên tai.',
-  'FLORENTIC không chịu trách nhiệm với việc giao hàng trễ do khách hàng cung cấp sai thông tin địa chỉ hoặc không bắt máy.',
-  'Vui lòng giữ lại hóa đơn và bao bì sản phẩm để được hỗ trợ đổi trả theo chính sách của FLORENTIC.',
+  '22.Décembre không chịu trách nhiệm với việc giao hàng trễ do khách hàng cung cấp sai thông tin địa chỉ hoặc không bắt máy.',
+  'Vui lòng giữ lại hóa đơn và bao bì sản phẩm để được hỗ trợ đổi trả theo chính sách của 22.Décembre.',
   'Phí vận chuyển có thể thay đổi tùy theo trọng lượng và kích thước đơn hàng thực tế.',
   'Đơn hàng được xử lý từ Thứ 2 đến Thứ 7 (8:00 - 17:00). Đơn đặt sau 17:00 sẽ được xử lý vào ngày làm việc tiếp theo.'
 ];
@@ -256,8 +256,8 @@ const importantNotes = [
 
 .shipping-policy {
   background-color: #ffffff;
-  color: #000000;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+  color: #333333;
+  
   padding: 48px 0;
 }
 
@@ -270,7 +270,7 @@ const importantNotes = [
 /* Page Header */
 .page-header {
   padding: 70px 0;
-  border-bottom: 2px solid #000000;
+  border-bottom: 2px solid #E6E0D8;
   margin-bottom: 64px;
 }
 
@@ -310,7 +310,7 @@ const importantNotes = [
   letter-spacing: 0.2em;
   margin: 0 0 32px 0;
   padding-bottom: 16px;
-  border-bottom: 2px solid #000000;
+  border-bottom: 2px solid #E6E0D8;
 }
 
 /* Shipping Methods */
@@ -321,7 +321,7 @@ const importantNotes = [
 }
 
 .method-card {
-  border: 2px solid #000000;
+  border: 2px solid #E6E0D8;
   padding: 32px;
   cursor: pointer;
   transition: all 0.3s ease;
@@ -333,7 +333,7 @@ const importantNotes = [
 }
 
 .method-card.active {
-  background-color: #000000;
+  background-color: #A08B7A;
   color: #ffffff;
 }
 
@@ -373,7 +373,7 @@ const importantNotes = [
 }
 
 .zone-item {
-  border: 2px solid #000000;
+  border: 2px solid #E6E0D8;
   padding: 32px;
 }
 
@@ -387,7 +387,7 @@ const importantNotes = [
 .zone-dot {
   width: 12px;
   height: 12px;
-  background-color: #000000;
+  background-color: #A08B7A;
   flex-shrink: 0;
 }
 
@@ -480,8 +480,8 @@ const importantNotes = [
 /* Promo Box */
 .promo-box {
   margin: 48px 0;
-  border: 2px solid #000000;
-  background-color: #000000;
+  border: 2px solid #E6E0D8;
+  background-color: #A08B7A;
   color: #ffffff;
   padding: 40px;
   display: flex;
@@ -513,7 +513,7 @@ const importantNotes = [
 
 /* Contact Box */
 .contact-box {
-  border: 2px solid #000000;
+  border: 2px solid #E6E0D8;
   padding: 32px;
   margin: 48px 0;
 }
@@ -551,7 +551,7 @@ const importantNotes = [
 
 /* Note Box */
 .note-box {
-  border: 2px solid #000000;
+  border: 2px solid #E6E0D8;
   padding: 32px;
   background-color: #f9fafb;
   margin: 48px 0;
@@ -586,7 +586,7 @@ const importantNotes = [
   top: 10px;
   width: 8px;
   height: 1px;
-  background-color: #000000;
+  background-color: #A08B7A;
 }
 
 .note-list li:last-child {

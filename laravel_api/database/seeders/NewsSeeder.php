@@ -11,9 +11,9 @@ class NewsSeeder extends Seeder
     public function run(): void
     {
         News::create([
-            'title' => 'New Florentic Collection Released',
-            'slug' => Str::slug('New Florentic Collection Released'),
-            'content' => 'Brand new products are now available',
+            'title' => 'New 22.DÉCEMBRE Collection Released',
+            'slug' => Str::slug('New 22.DÉCEMBRE Collection Released'),
+            'content' => 'Discover our latest collection for the season...',
             'author_id' => 1,
             'status' => 'published'
         ]);

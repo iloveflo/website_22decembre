@@ -7,6 +7,7 @@ use App\Http\Requests\ProductRequest;
 use App\Models\Product;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\DB;
 
 class ProductAdminController extends Controller
 {
@@ -57,38 +58,44 @@ class ProductAdminController extends Controller
         $variants = $data['variants'] ?? [];
         unset($data['variants']);
 
-        // Tạo slug & SKU nếu chưa có
-        $data['slug'] = Str::slug($data['name']);
-        $data['sku']  = $data['sku'] ?? strtoupper(Str::random(8));
+        // Sử dụng Transaction để đảm bảo tính toàn vẹn dữ liệu
+        return DB::transaction(function () use ($data, $variants) {
+            // Tạo slug & SKU nếu chưa có
+            $data['slug'] = Str::slug($data['name']);
+            $data['sku']  = $data['sku'] ?? strtoupper(Str::random(8));
 
-        // Nếu không có cost_price thì cho = price
-        if (!isset($data['cost_price']) || $data['cost_price'] === null) {
-            $data['cost_price'] = $data['price'];
-        }
+            // Nếu không có cost_price thì cho = price
+            if (!isset($data['cost_price']) || $data['cost_price'] === null) {
+                $data['cost_price'] = $data['price'];
+            }
 
-        // ❌ KHÔNG còn $data['quantity'] vì bảng products không có cột này nữa
+            // Tính tổng tồn kho ban đầu
+            $totalStock = collect($variants)->sum('quantity');
+            $data['stock_quantity'] = $totalStock;
 
-        // Tạo sản phẩm
-        $product = Product::create($data);
+            // Tự động set status dựa trên tồn kho
+            if ($totalStock <= 0) {
+                $data['status'] = 'out_of_stock';
+            }
 
-        // Tạo biến thể
-        foreach ($variants as $variant) {
-            $product->variants()->create([
-                'color_name'       => $variant['color_name'] ?? '',
-                'color_code'       => $variant['color_code'] ?? null,
-                'size'             => $variant['size'],
-                'sku'              => $variant['sku'] ?? null,
-                'quantity'         => $variant['quantity'] ?? 0,
-                'additional_price' => $variant['additional_price'] ?? 0,
-            ]);
-        }
+            // Tạo sản phẩm
+            $product = Product::create($data);
 
-        // ❌ Không cập nhật quantity trên bảng products nữa
+            // Tạo biến thể
+            foreach ($variants as $variant) {
+                $product->variants()->create([
+                    'variant_attributes' => $variant['variant_attributes'] ?? [],
+                    'sku'                => $variant['sku'] ?? null,
+                    'quantity'           => $variant['quantity'] ?? 0,
+                    'additional_price'   => $variant['additional_price'] ?? 0,
+                ]);
+            }
 
-        return response()->json([
-            'message' => 'Thêm sản phẩm thành công!',
-            'data'    => $product->load('category', 'variants'),
-        ], 201);
+            return response()->json([
+                'message' => 'Thêm sản phẩm thành công!',
+                'data'    => $product->load('category', 'variants'),
+            ], 201);
+        });
     }
 
     // GET /api/admin/products/{id}
@@ -108,44 +115,53 @@ class ProductAdminController extends Controller
     public function update(ProductRequest $request, $id)
     {
         $product = Product::findOrFail($id);
-
-        $data     = $request->validated();
+        $data    = $request->validated();
         $variants = $data['variants'] ?? [];
         unset($data['variants']);
 
-        $data['slug'] = Str::slug($data['name']);
+        return DB::transaction(function () use ($product, $data, $variants) {
+            $data['slug'] = Str::slug($data['name']);
 
-        // Giữ SKU gốc, không cho sửa trong form này
-        unset($data['sku']);
+            // Giữ SKU gốc, không cho sửa trong form này
+            unset($data['sku']);
 
-        // Nếu không gửi cost_price thì giữ cost_price cũ (hoặc = price mới)
-        if (!isset($data['cost_price']) || $data['cost_price'] === null) {
-            $data['cost_price'] = $product->cost_price ?? $data['price'] ?? $product->price;
-        }
+            // Nếu không gửi cost_price thì giữ cost_price cũ (hoặc = price mới)
+            if (!isset($data['cost_price']) || $data['cost_price'] === null) {
+                $data['cost_price'] = $product->cost_price ?? $data['price'] ?? $product->price;
+            }
 
-        // Cập nhật sản phẩm
-        $product->update($data);
+            // Tính toán tổng tồn kho mới từ biến thể
+            $totalStock = collect($variants)->sum('quantity');
+            $data['stock_quantity'] = $totalStock;
 
-        // Clear variants cũ và tạo lại
-        $product->variants()->delete();
+            // Tự động cập nhật trạng thái nếu hết hàng
+            if ($totalStock <= 0) {
+                $data['status'] = 'out_of_stock';
+            } elseif ($product->status === 'out_of_stock' && $totalStock > 0) {
+                $data['status'] = 'active';
+            }
 
-        foreach ($variants as $variant) {
-            $product->variants()->create([
-                'color_name'       => $variant['color_name'] ?? '',
-                'color_code'       => $variant['color_code'] ?? null,
-                'size'             => $variant['size'],
-                'sku'              => $variant['sku'] ?? null,
-                'quantity'         => $variant['quantity'] ?? 0,
-                'additional_price' => $variant['additional_price'] ?? 0,
+            // Cập nhật sản phẩm
+            $product->update($data);
+
+            // Cập nhật hoặc tạo mới biến thể
+            // Để an toàn và đồng bộ, ta xóa cũ tạo mới (có thể tối ưu bằng sync nếu cần)
+            $product->variants()->delete();
+
+            foreach ($variants as $variant) {
+                $product->variants()->create([
+                    'variant_attributes' => $variant['variant_attributes'] ?? [],
+                    'sku'                => $variant['sku'] ?? null,
+                    'quantity'           => $variant['quantity'] ?? 0,
+                    'additional_price'   => $variant['additional_price'] ?? 0,
+                ]);
+            }
+
+            return response()->json([
+                'message' => 'Cập nhật sản phẩm thành công',
+                'data'    => $product->load('category', 'variants'),
             ]);
-        }
-
-        // ❌ Không cập nhật quantity trên bảng products nữa
-
-        return response()->json([
-            'message' => 'Cập nhật sản phẩm thành công',
-            'data'    => $product->load('category', 'variants'),
-        ]);
+        });
     }
 
     // DELETE /api/admin/products/{id}

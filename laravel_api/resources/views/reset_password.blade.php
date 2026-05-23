@@ -3,9 +3,9 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Đặt lại mật khẩu - Florentic</title>
+    <title>Đặt lại mật khẩu - 22.Décembre</title>
 </head>
-<body style="margin: 0; padding: 0; background-color: #f4f4f4; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;">
+<body style="margin: 0; padding: 0; background-color: #f4f4f4; font-family: 'Georgia', serif;">
 
     <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #f4f4f4; padding: 40px 0;">
         <tr>
@@ -14,8 +14,8 @@
                     
                     <tr>
                         <td align="center" style="padding: 40px 0 30px 0; border-bottom: 1px solid #eeeeee;">
-                            <h1 style="margin: 0; font-size: 26px; letter-spacing: 4px; text-transform: uppercase; color: #000000; font-family: 'Georgia', serif;">
-                                FLORENTIC
+                            <h1 style="margin: 0; font-size: 26px; letter-spacing: 4px; text-transform: uppercase; color: #333333; font-family: 'Georgia', serif;">
+                                22.DÉCEMBRE
                             </h1>
                         </td>
                     </tr>
@@ -31,11 +31,11 @@
                             </h2>
                             
                             <p style="margin: 0 0 25px 0; color: #666666; line-height: 1.6; font-size: 15px;">
-                                Chúng tôi nhận được yêu cầu đặt lại mật khẩu cho tài khoản Florentic của bạn. Để đảm bảo an toàn, vui lòng nhấn vào nút bên dưới để tạo mật khẩu mới.
+                                Chúng tôi nhận được yêu cầu đặt lại mật khẩu cho tài khoản 22.Décembre của bạn. Để đảm bảo an toàn, vui lòng nhấn vào nút bên dưới để tạo mật khẩu mới.
                             </p>
 
                             <div style="margin-bottom: 30px;">
-                                <a href="{{ $link }}" style="background-color: #000000; color: #ffffff; padding: 14px 35px; text-decoration: none; font-weight: bold; border-radius: 2px; font-size: 14px; display: inline-block; text-transform: uppercase; letter-spacing: 1px;">
+                                <a href="{{ $link }}" style="background-color: #A08B7A; color: #ffffff; padding: 14px 35px; text-decoration: none; font-weight: bold; border-radius: 2px; font-size: 14px; display: inline-block; text-transform: uppercase; letter-spacing: 1px;">
                                     Đặt lại mật khẩu
                                 </a>
                             </div>
@@ -54,8 +54,8 @@
 
                     <tr>
                         <td style="background-color: #f9f9f9; color: #888888; padding: 20px; text-align: center; font-size: 12px; border-top: 1px solid #eeeeee;">
-                            <p style="margin: 0 0 5px 0;">Trân trọng, <strong>Đội ngũ Florentic</strong></p>
-                            <p style="margin: 0;">Mọi thắc mắc vui lòng liên hệ: support@florentic.com</p>
+                            <p style="margin: 0 0 5px 0;">Trân trọng, <strong>Đội ngũ 22.Décembre</strong></p>
+                            <p style="margin: 0;">Mọi thắc mắc vui lòng liên hệ: support@22decembre.vn</p>
                         </td>
                     </tr>
                 </table>

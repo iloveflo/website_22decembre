@@ -76,5 +76,13 @@ class Order extends Model
     {
         return $this->hasMany(Review::class, 'order_id');
     }
+
+    /**
+     * Quan hệ: Order có nhiều nhật ký thanh toán
+     */
+    public function payments()
+    {
+        return $this->hasMany(\App\Models\Payment::class, 'order_id');
+    }
 }
 

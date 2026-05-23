@@ -18,8 +18,10 @@ services:
       DB_USERNAME: root
       DB_PASSWORD: rootpassword
       APP_KEY: base64:tmuj+gxMoWqDcSqdCbxJe9xVpEonDlfx72CvVVTJonE= # Nhớ thay key thật
-      APP_ENV: production
+      APP_ENV: local
       APP_DEBUG: "false"
+      APP_URL: "http://localhost:8000"
+      FRONTEND_URL: "http://localhost:8000"
 
   # 2. Container Database
   db:

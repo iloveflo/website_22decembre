@@ -19,6 +19,7 @@ class OrderItem extends Model
         'product_id',
         'product_name',
         'product_image',
+        'variant_info',
         'size',
         'color',
         'price',
@@ -58,24 +59,38 @@ class OrderItem extends Model
         return $this->hasMany(Review::class, 'order_id');
     }
 
-    // 1. Tự động thêm field 'product_image_url' vào JSON
-    protected $appends = ['product_image_url'];
+    // 1. Tự động thêm các field vào JSON
+    protected $appends = ['product_image_url', 'size', 'color'];
 
-    // 2. Định nghĩa logic tạo URL đầy đủ
     public function getProductImageUrlAttribute()
     {
-        // Nếu trong DB chưa có ảnh, trả về ảnh lỗi
         if (!$this->product_image) {
-            return asset('images/placeholder.png');
+            return 'https://placehold.co/300x300?text=No+Image';
         }
 
-        // Nếu dữ liệu cũ lỡ lưu cả http:// rồi thì trả về luôn
         if (filter_var($this->product_image, FILTER_VALIDATE_URL)) {
             return $this->product_image;
         }
 
-        // Nối domain vào đường dẫn tương đối
-        return asset($this->product_image);
+        return '/' . ltrim($this->product_image, '/');
+    }
+
+    // 3. Truy xuất Size và Color từ variant_info nếu cột size/color trống
+    public function getSizeAttribute()
+    {
+        $value = $this->attributes['size'] ?? null;
+        if ($value) return $value;
+        if (!$this->variant_info) return 'N/A';
+        $attrs = is_string($this->variant_info) ? json_decode($this->variant_info, true) : $this->variant_info;
+        return $attrs['Size'] ?? $attrs['size'] ?? $attrs['Kích thước'] ?? 'N/A';
+    }
+
+    public function getColorAttribute()
+    {
+        $value = $this->attributes['color'] ?? null;
+        if ($value) return $value;
+        if (!$this->variant_info) return 'N/A';
+        $attrs = is_string($this->variant_info) ? json_decode($this->variant_info, true) : $this->variant_info;
+        return $attrs['Color'] ?? $attrs['color'] ?? $attrs['Màu sắc'] ?? $attrs['Màu'] ?? 'N/A';
     }
 }
-

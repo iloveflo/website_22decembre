@@ -16,7 +16,7 @@ class CartController extends Controller
      * Thêm sản phẩm vào giỏ hàng
      */
     // Hàm helper nội bộ (Private)
-    private function coreAddToCart($userId, $sessionId, $productId, $quantity, $size, $color)
+    private function coreAddToCart($userId, $sessionId, $productId, $quantity, $attributes)
     {
         // 1. Kiểm tra sản phẩm
         $product = Product::findOrFail($productId);
@@ -24,20 +24,27 @@ class CartController extends Controller
             throw new \Exception("Sản phẩm '{$product->name}' đã ngừng kinh doanh.");
         }
 
-        // 2. Kiểm tra biến thể (Variant)
-        $variant = \App\Models\ProductVariant::where('product_id', $product->id)
-            ->where('size', $size)
-            ->where('color_name', $color)
-            ->first();
+        // 2. Kiểm tra biến thể (Variant) - Tìm variant khớp bộ thuộc tính
+        $query = \App\Models\ProductVariant::where('product_id', $product->id);
+        
+        foreach ($attributes as $key => $value) {
+            $query->where("variant_attributes->$key", $value);
+        }
+
+        $variant = $query->first();
 
         if (!$variant) {
-            throw new \Exception("Phiên bản '{$size} - {$color}' của sản phẩm '{$product->name}' không tồn tại.");
+            $attrString = collect($attributes)->map(fn($v, $k) => "$k: $v")->join(', ');
+            throw new \Exception("Phiên bản ($attrString) của sản phẩm '{$product->name}' hiện tại không còn hoặc không tồn tại.");
         }
+
+        // Tính toán attributesJson để dùng cho cart_sessions (vẫn dùng ksort để đồng bộ key)
+        ksort($attributes);
+        $attributesJson = json_encode($attributes);
 
         // 3. Kiểm tra giỏ hàng hiện tại để cộng dồn
         $query = CartSession::where('product_id', $product->id)
-            ->where('size', $size)
-            ->where('color', $color);
+            ->where('variant_info', $attributesJson);
 
         if ($userId) $query->where('user_id', $userId);
         else $query->where('session_id', $sessionId);
@@ -52,7 +59,7 @@ class CartController extends Controller
 
         // 5. Kiểm tra tồn kho
         if ($variant->quantity < $newQuantity) {
-            throw new \Exception("Sản phẩm '{$product->name}' ({$size}, {$color}) chỉ còn {$variant->quantity} sản phẩm.");
+            throw new \Exception("Sản phẩm '{$product->name}' chỉ còn {$variant->quantity} sản phẩm cho phiên bản này.");
         }
 
         // 6. Lưu vào DB
@@ -61,12 +68,11 @@ class CartController extends Controller
             $cartItem->save();
         } else {
             $cartItem = CartSession::create([
-                'session_id' => $sessionId,
-                'user_id'    => $userId,
-                'product_id' => $productId,
-                'quantity'   => $quantity,
-                'size'       => $size,
-                'color'      => $color,
+                'session_id'   => $sessionId,
+                'user_id'      => $userId,
+                'product_id'   => $productId,
+                'quantity'     => $quantity,
+                'variant_info' => $attributesJson,
             ]);
         }
 
@@ -75,12 +81,11 @@ class CartController extends Controller
 
     public function addToCart(Request $request)
     {
-        // 1. Validate (Giữ nguyên)
+        // 1. Validate
         $validated = $request->validate([
             'product_id' => 'required|exists:products,id',
             'quantity'   => 'required|integer|min:1',
-            'size'       => 'nullable|string',
-            'color'      => 'nullable|string',
+            'attributes' => 'required|array', // { "Màu": "Đỏ", "Size": "XL" }
             'session_id' => 'nullable|string',
         ]);
 
@@ -99,8 +104,7 @@ class CartController extends Controller
                 $sessionId,
                 $validated['product_id'],
                 $validated['quantity'],
-                $validated['size'],
-                $validated['color']
+                $validated['attributes']
             );
 
             DB::commit();
@@ -110,7 +114,7 @@ class CartController extends Controller
                 'message' => 'Thêm vào giỏ hàng thành công',
                 'data' => [
                     'cart_item' => $cartItem,
-                    'session_id' => $sessionId // Trả về để Vue lưu lại nếu cần
+                    'session_id' => $sessionId
                 ]
             ], 200);
         } catch (\Exception $e) {
@@ -118,21 +122,35 @@ class CartController extends Controller
             return response()->json([
                 'status' => 'error',
                 'message' => $e->getMessage()
-            ], 400); // 400 Bad Request
+            ], 400);
         }
     }
-
     public function buyAgain(Request $request)
     {
-        $request->validate(['order_id' => 'required|exists:orders,id']);
+        $request->validate([
+            'order_id'   => 'required|exists:orders,id',
+            'session_id' => 'nullable|string',
+        ]);
 
-        // Xác định User/Session hiện tại (Người đang thực hiện mua lại)
+        // Xác định User/Session hiện tại
         $user = auth('sanctum')->user();
         $userId = $user ? $user->id : null;
-        $sessionId = $request->input('session_id'); // Lấy session hiện tại từ Vue gửi lên
+        $sessionId = $request->input('session_id');
 
         // Tìm đơn hàng cũ
         $order = Order::with('orderItems')->findOrFail($request->order_id);
+
+        // Security: Check quyền sở hữu đơn hàng
+        $isOwner = false;
+        if ($user) {
+            if ($order->user_id == $user->id) $isOwner = true;
+        } else {
+            if ($sessionId && $order->session_id == $sessionId) $isOwner = true;
+        }
+
+        if (!$isOwner) {
+            return response()->json(['message' => 'Bạn không có quyền thực hiện hành động này'], 403);
+        }
 
         // Biến để theo dõi kết quả
         $successCount = 0;
@@ -143,34 +161,33 @@ class CartController extends Controller
             foreach ($order->orderItems as $item) {
                 try {
                     // Tái sử dụng logic thêm giỏ hàng cho từng món
+                    // Parse variant_info từ snapshot đơn hàng cũ
+                    $attributes = json_decode($item->variant_info, true) ?: [];
+
                     $this->coreAddToCart(
                         $userId,
                         $sessionId,
                         $item->product_id,
-                        $item->quantity, // Mua lại số lượng như cũ
-                        $item->size,
-                        $item->color
+                        $item->quantity, 
+                        $attributes
                     );
                     $successCount++;
                 } catch (\Exception $e) {
-                    // Nếu món này lỗi (hết hàng, ngừng bán...), ghi lại lỗi nhưng KHÔNG dừng quy trình
-                    // để các món khác vẫn được thêm vào.
                     $errors[] = $e->getMessage();
                 }
             }
 
             DB::commit();
 
-            // Tạo thông báo phản hồi thông minh
             $message = "Đã thêm $successCount sản phẩm vào giỏ hàng.";
             if (count($errors) > 0) {
-                $message .= " Có " . count($errors) . " sản phẩm không thể thêm (do hết hàng hoặc thay đổi).";
+                $message .= " Có " . count($errors) . " sản phẩm không thể thêm.";
             }
 
             return response()->json([
                 'status' => 'success',
                 'message' => $message,
-                'errors' => $errors // Trả về chi tiết lỗi để Frontend hiển thị nếu muốn
+                'errors' => $errors
             ]);
         } catch (\Exception $e) {
             DB::rollBack();
@@ -191,7 +208,6 @@ class CartController extends Controller
         // 2. Xác định người dùng
         $user = auth('sanctum')->user();
 
-        // Nếu không có cả user lẫn session_id thì trả về rỗng luôn
         if (!$user && !$request->session_id) {
             return response()->json([
                 'status' => 'success',
@@ -205,42 +221,46 @@ class CartController extends Controller
             'product' => function ($q) {
                 $q->select('id', 'name', 'slug', 'price', 'sale_price', 'status', 'featured');
             },
-            'product.variants', // Load toàn bộ variants để lọc trong memory (hoặc query cụ thể nếu muốn tối ưu hơn nữa)
+            'product.variants', 
             'product.images' => function ($q) {
                 $q->limit(1);
             }
         ]);
 
-        // Lọc theo User hoặc Session
         if ($user) {
             $query->where('user_id', $user->id);
         } else {
             $query->where('session_id', $request->session_id);
         }
 
-        // Chỉ lấy những item mà sản phẩm vẫn còn tồn tại (chưa bị xóa cứng/mềm)
         $query->whereHas('product');
-
         $cartItems = $query->orderBy('created_at', 'desc')->get();
 
-        // 4. Tính toán tổng tiền (Optional - tiện cho frontend)
+        // 4. Tính toán tổng tiền
         $totalPrice = 0;
         $formattedItems = $cartItems->map(function ($item) use (&$totalPrice) {
-            // Tìm variant tương ứng trong list variants đã load sẵn
-            // Logic này nhanh hơn là query DB trong vòng lặp
-            $variant = $item->product->variants->first(function ($v) use ($item) {
-                return $v->size === $item->size && $v->color_name === $item->color;
+            // Tìm variant tương ứng
+            $itemAttrJson = $item->variant_info; // Đã là string JSON trong DB
+            
+            $itemAttrArray = json_decode($itemAttrJson, true) ?: [];
+            $variant = $item->product->variants->first(function ($v) use ($itemAttrArray) {
+                // So sánh mảng thay vì so sánh string JSON để tránh lỗi khoảng trắng
+                $vAttr = $v->variant_attributes;
+                if (count($vAttr) !== count($itemAttrArray)) return false;
+                foreach ($itemAttrArray as $key => $val) {
+                    if (!isset($vAttr[$key]) || $vAttr[$key] !== $val) return false;
+                }
+                return true;
             });
 
-            // Lấy tồn kho cụ thể của size/màu đó. Nếu lỗi data không tìm thấy thì cho bằng 0
             $specificStock = $variant ? $variant->quantity : 0;
-
-            // Logic giá: Ưu tiên giá sale
             $unitPrice = $item->product->sale_price > 0 ? $item->product->sale_price : $item->product->price;
-            $lineTotal = $unitPrice * $item->quantity;
-            $totalPrice += $lineTotal;
+            
+            // Cộng thêm phụ phí của variant nếu có
+            if ($variant && $variant->additional_price > 0) {
+                $unitPrice += $variant->additional_price;
+            }
 
-            $unitPrice = $item->product->sale_price > 0 ? $item->product->sale_price : $item->product->price;
             $lineTotal = $unitPrice * $item->quantity;
             $totalPrice += $lineTotal;
 
@@ -250,8 +270,7 @@ class CartController extends Controller
                 'name' => $item->product->name,
                 'slug' => $item->product->slug,
                 'image' => $item->product->main_image_url,
-                'size' => $item->size,
-                'color' => $item->color,
+                'variant_info' => json_decode($itemAttrJson, true),
                 'quantity' => $item->quantity,
                 'stock_quantity' => $specificStock,
                 'unit_price' => $unitPrice,
@@ -280,22 +299,16 @@ class CartController extends Controller
         ]);
 
         $user = auth('sanctum')->user();
-
-        // Tìm item trong giỏ
         $cartItem = CartSession::find($id);
 
         if (!$cartItem) {
             return response()->json(['message' => 'Sản phẩm không tồn tại trong giỏ'], 404);
         }
 
-        // Bảo mật: Kiểm tra xem item này có đúng là của người đang request không
         $isOwner = false;
-
         if ($user) {
-            // Nếu là user login: Check user_id
             if ($cartItem->user_id == $user->id) $isOwner = true;
         } else {
-            // Nếu là khách: Check session_id
             if ($request->session_id && $cartItem->session_id == $request->session_id) $isOwner = true;
         }
 
@@ -303,7 +316,6 @@ class CartController extends Controller
             return response()->json(['message' => 'Bạn không có quyền xóa sản phẩm này'], 403);
         }
 
-        // Xóa
         $cartItem->delete();
 
         return response()->json([
@@ -313,27 +325,23 @@ class CartController extends Controller
     }
 
     /**
-     * Cập nhật số lượng sản phẩm trong giỏ (Tăng/Giảm từ giỏ hàng)
+     * Cập nhật số lượng sản phẩm trong giỏ
      */
     public function update(Request $request)
     {
-        // 1. Validate
         $request->validate([
-            'id'         => 'required|exists:cart_sessions,id', // ID của dòng trong cart_sessions
+            'id'         => 'required|exists:cart_sessions,id',
             'quantity'   => 'required|integer|min:1',
             'session_id' => 'nullable|string',
         ]);
 
         $user = auth('sanctum')->user();
-
-        // 2. Tìm Cart Item
         $cartItem = CartSession::find($request->id);
 
         if (!$cartItem) {
             return response()->json(['message' => 'Sản phẩm không tồn tại'], 404);
         }
 
-        // 3. Check quyền sở hữu (Security)
         $isOwner = false;
         if ($user) {
             if ($cartItem->user_id == $user->id) $isOwner = true;
@@ -345,11 +353,13 @@ class CartController extends Controller
             return response()->json(['message' => 'Bạn không có quyền sửa sản phẩm này'], 403);
         }
 
-        // 4. Check tồn kho
-        $variant = \App\Models\ProductVariant::where('product_id', $cartItem->product_id)
-            ->where('size', $cartItem->size)
-            ->where('color_name', $cartItem->color) // Map với cột color trong cart
-            ->first();
+        // Check tồn kho dùng JSON path
+        $variantQuery = \App\Models\ProductVariant::where('product_id', $cartItem->product_id);
+        $vAttr = json_decode($cartItem->variant_info, true) ?: [];
+        foreach ($vAttr as $key => $val) {
+            $variantQuery->where("variant_attributes->$key", $val);
+        }
+        $variant = $variantQuery->first();
 
         if ($variant && $variant->quantity < $request->quantity) {
             return response()->json([
@@ -357,7 +367,6 @@ class CartController extends Controller
             ], 400);
         }
 
-        // 5. Update
         $cartItem->quantity = $request->quantity;
         $cartItem->save();
 
@@ -365,5 +374,122 @@ class CartController extends Controller
             'status' => 'success',
             'message' => 'Cập nhật giỏ hàng thành công'
         ], 200);
+    }
+
+    public function checkCoupon(Request $request)
+    {
+        $request->validate([
+            'coupon_code' => 'required|string',
+            'subtotal'    => 'required|numeric|min:0'
+        ]);
+
+        try {
+            $user = auth('sanctum')->user();
+            $coupon = \App\Models\Coupon::where('code', $request->coupon_code)->first();
+
+            if (!$coupon) {
+                throw new \Exception("Mã giảm giá không tồn tại.");
+            }
+
+            $now = \Carbon\Carbon::now();
+            if ($coupon->status !== 'active') {
+                throw new \Exception("Mã giảm giá đang bị khóa.");
+            }
+            if ($coupon->start_date && $now->lt($coupon->start_date)) {
+                throw new \Exception("Mã giảm giá chưa đến đợt áp dụng.");
+            }
+            if ($coupon->end_date && $now->gt($coupon->end_date)) {
+                throw new \Exception("Mã giảm giá đã hết hạn.");
+            }
+            if ($coupon->usage_limit > 0 && $coupon->used_count >= $coupon->usage_limit) {
+                throw new \Exception("Mã giảm giá đã hết lượt sử dụng.");
+            }
+            if ($coupon->min_order_value > 0 && $request->subtotal < $coupon->min_order_value) {
+                throw new \Exception("Đơn hàng chưa đạt giá trị tối thiểu để dùng mã này.");
+            }
+            if ($user) {
+                $hasUsed = \App\Models\CouponUsage::where('coupon_id', $coupon->id)
+                    ->where('user_id', $user->id)
+                    ->exists();
+                if ($hasUsed) {
+                    throw new \Exception("Bạn đã sử dụng mã giảm giá này rồi.");
+                }
+            }
+
+            $discountAmount = 0;
+            if ($coupon->discount_type === 'fixed') {
+                $discountAmount = $coupon->discount_value;
+            } elseif ($coupon->discount_type === 'percent') {
+                $discountAmount = $request->subtotal * ($coupon->discount_value / 100);
+                if ($coupon->max_discount > 0) {
+                    $discountAmount = min($discountAmount, $coupon->max_discount);
+                }
+            }
+
+            $discountAmount = min($discountAmount, $request->subtotal);
+
+            return response()->json([
+                'status' => 'success',
+                'discount_amount' => $discountAmount,
+                'message' => 'Áp dụng mã giảm giá thành công'
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => $e->getMessage()
+            ], 400);
+        }
+    }
+    /**
+     * Lấy danh sách mã khuyến mãi dành cho user đang đăng nhập:
+     * - Mã được cấp riêng (user_coupons) chưa dùng
+     * - Mã công khai đang active, chưa hết hạn, chưa hết lượt, user chưa dùng
+     */
+    public function myCoupons(Request $request)
+    {
+        $user = auth('sanctum')->user();
+        if (!$user) {
+            return response()->json(['status' => 'error', 'message' => 'Chưa đăng nhập'], 401);
+        }
+
+        $now = \Carbon\Carbon::now();
+
+        // 1. Tập hợp coupon_id mà user đã sử dụng
+        $usedCouponIds = \App\Models\CouponUsage::where('user_id', $user->id)
+            ->pluck('coupon_id')
+            ->toArray();
+
+        // 2. Mã được cấp riêng cho user (user_coupons) và chưa dùng
+        $personalCouponIds = \DB::table('user_coupons')
+            ->where('user_id', $user->id)
+            ->where('is_used', 0)
+            ->pluck('coupon_id')
+            ->toArray();
+
+        // 3. Query coupon hợp lệ
+        $coupons = \App\Models\Coupon::where('status', 'active')
+            ->where('start_date', '<=', $now)
+            ->where('end_date', '>=', $now)
+            ->where(function ($q) {
+                $q->whereNull('usage_limit')
+                  ->orWhereRaw('used_count < usage_limit');
+            })
+            ->whereNotIn('id', $usedCouponIds) // Loại bỏ mã user đã dùng
+            ->where(function ($q) use ($personalCouponIds) {
+                // Hiển thị: mã công khai (không có trong user_coupons bảng nào)
+                // HOẶC mã được cấp riêng cho user này
+                $q->whereNotIn('id', function ($sub) {
+                    $sub->select('coupon_id')->from('user_coupons');
+                })->orWhereIn('id', $personalCouponIds);
+            })
+            ->orderByRaw('FIELD(id, ' . (empty($personalCouponIds) ? '0' : implode(',', $personalCouponIds)) . ') DESC') // Mã riêng lên đầu
+            ->get(['id', 'code', 'description', 'discount_type', 'discount_value', 'min_order_value', 'max_discount', 'end_date']);
+
+        return response()->json([
+            'status' => 'success',
+            'data'   => $coupons,
+            'personal_ids' => $personalCouponIds, // Để FE đánh dấu badge "Của tôi"
+        ]);
     }
 }

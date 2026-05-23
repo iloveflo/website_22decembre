@@ -31,7 +31,7 @@
       <h2>4. Quy trình xử lý đổi trả</h2>
       <ol>
         <li>Liên hệ qua hotline hoặc chat để gửi yêu cầu đổi trả.</li>
-        <li>Gửi lại sản phẩm cho FLORENTIC theo hướng dẫn.</li>
+        <li>Gửi lại sản phẩm cho 22.Décembre theo hướng dẫn.</li>
         <li>Kiểm tra chất lượng trong 24–48 giờ.</li>
         <li>Tiến hành đổi hoặc hoàn tiền theo yêu cầu.</li>
       </ol>
@@ -40,7 +40,7 @@
     <section class="card">
       <h2>5. Liên hệ hỗ trợ</h2>
       <p>
-        Email: support@florentic.vn<br />
+        Email: support@22decembre.vn<br />
         Hotline: 0900 000 000
       </p>
     </section>
@@ -57,7 +57,7 @@
   margin: 60px auto;
   padding: 0 20px;
   color: #111;
-  font-family: "Inter", sans-serif;
+  
 }
 
 /* ===== TITLE ===== */
@@ -68,14 +68,14 @@
   letter-spacing: 2px;
   text-align: left;
   margin-bottom: 40px;
-  border-left: 6px solid #000;
+  border-left: 6px solid #A08B7A;
   padding-left: 16px;
 }
 
 /* ===== CARD SECTION ===== */
 .card {
   background: #fff;
-  border: 2px solid #000;
+  border: 2px solid #E6E0D8;
   border-radius: 0; /* VUÔNG VỨC HOÀN TOÀN */
   padding: 28px 30px;
   margin-bottom: 28px;

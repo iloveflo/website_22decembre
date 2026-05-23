@@ -24,18 +24,41 @@
              <span class="order-code">MÃ ĐƠN: {{ order.order_code }}</span>
           </div>
           <div class="header-right">
-             <span class="status-text">{{ getStatusLabel(order.order_status) }}</span>
+             <span class="status-text" :class="order.order_status">{{ getStatusLabel(order.order_status) }}</span>
           </div>
         </div>
 
         <div class="section-card status-stepper">
-           <div :class="['step', isStepActive('pending') ? 'active' : '']">Đặt Hàng</div>
-           <div class="line"></div>
-           <div :class="['step', isStepActive('confirmed') ? 'active' : '']">Đã Xác Nhận</div>
-           <div class="line"></div>
-           <div :class="['step', isStepActive('shipping') ? 'active' : '']">Vận Chuyển</div>
-           <div class="line"></div>
-           <div :class="['step', isStepActive('completed') ? 'active' : '']">Hoàn Thành</div>
+           <div :class="['step-item', isStepActive('pending') ? 'active' : '', order.order_status === 'pending' ? 'current' : '']">
+              <div class="step-circle">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>
+              </div>
+              <div class="step-label">Đặt Hàng</div>
+           </div>
+           <div :class="['step-line', isStepActive('confirmed') ? 'active' : '']"></div>
+           
+           <div :class="['step-item', isStepActive('confirmed') ? 'active' : '', order.order_status === 'confirmed' ? 'current' : '']">
+              <div class="step-circle">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+              </div>
+              <div class="step-label">Đã Xác Nhận</div>
+           </div>
+           <div :class="['step-line', isStepActive('shipping') ? 'active' : '']"></div>
+
+           <div :class="['step-item', isStepActive('shipping') ? 'active' : '', order.order_status === 'shipping' ? 'current' : '']">
+              <div class="step-circle">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13"/><polyline points="16 8 20 8 23 11 23 16 16 16"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+              </div>
+              <div class="step-label">Vận Chuyển</div>
+           </div>
+           <div :class="['step-line', isStepActive('completed') ? 'active' : '']"></div>
+
+           <div :class="['step-item', isStepActive('completed') ? 'active' : '', order.order_status === 'completed' ? 'current' : '']">
+              <div class="step-circle">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>
+              </div>
+              <div class="step-label">Hoàn Thành</div>
+           </div>
         </div>
 
         <div class="section-card address-card">
@@ -84,10 +107,32 @@
               <span class="total-price">{{ formatCurrency(order.total_amount) }}</span>
            </div>
            
-           <div class="payment-method-info">
-              Phương thức thanh toán: <strong>{{ order.payment_method === 'cod' ? 'Thanh toán khi nhận hàng' : order.payment_method }}</strong>
-           </div>
-        </div>
+            <div class="payment-method-info">
+               Phương thức thanh toán: <strong>{{ order.payment_method === 'cod' ? 'Thanh toán khi nhận hàng' : order.payment_method }}</strong>
+               <div class="payment-status-tag" :class="order.payment_status">
+                  Trạng thái: {{ getPaymentStatusLabel(order.payment_status) }}
+               </div>
+            </div>
+
+            <!-- PHẦN MỚI: LỊCH SỬ GIAO DỊCH (chỉ hiện Online) -->
+            <div v-if="onlinePayments.length > 0" class="payment-history-section">
+               <div class="section-title">LỊCH SỬ GIAO DỊCH</div>
+               <div class="payment-log-list">
+                  <div v-for="pay in onlinePayments" :key="pay.id" class="payment-log-item">
+                     <div class="log-main">
+                        <span class="method-name">{{ getPaymentMethodLabel(pay.payment_method) }}</span>
+                        <span class="amount">{{ formatCurrency(pay.amount) }}</span>
+                     </div>
+                     <div class="log-sub">
+                        <span class="time">{{ formatDate(pay.created_at) }}</span>
+                        <span :class="['status-badge', pay.status === 'success' ? 'success' : 'failed']">
+                          {{ pay.status === 'success' ? 'Thành công' : 'Thất bại' }}
+                        </span>
+                     </div>
+                  </div>
+               </div>
+            </div>
+         </div>
 
       </div>
     </div>
@@ -104,6 +149,14 @@ export default {
       loading: true,
       error: null
     };
+  },
+  computed: {
+    // Chỉ hiện các giao dịch Online thực sự (loại bỏ COD vì không có giao dịch điện tử)
+    onlinePayments() {
+      if (!this.order || !this.order.payments) return [];
+      // Hiện toàn bộ lịch sử giao dịch online của đơn hàng
+      return this.order.payments.filter(p => p.payment_method !== 'cod');
+    }
   },
   mounted() {
     this.fetchOrderDetail();
@@ -163,8 +216,13 @@ export default {
       return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(val);
     },
     
+    formatDate(date) {
+      if (!date) return '';
+      return new Date(date).toLocaleString('vi-VN');
+    },
+    
     getImageUrl(path) {
-      if (!path) return 'https://via.placeholder.com/80';
+      if (!path) return 'https://placehold.co/80';
       if (path.startsWith('http')) return path;
       // Dùng Proxy /uploads
       return path.startsWith('/') ? path : '/' + path;
@@ -179,6 +237,25 @@ export default {
         'cancelled': 'ĐÃ HỦY'
       };
       return map[status] || status;
+    },
+
+    getPaymentStatusLabel(status) {
+      const map = {
+        'pending': 'Chưa thanh toán',
+        'paid': 'Đã thanh toán',
+        'failed': 'Thanh toán thất bại'
+      };
+      return map[status] || 'Chưa thanh toán';
+    },
+
+    getPaymentMethodLabel(method) {
+      const map = {
+        'vnpay': 'VNPay',
+        'momo': 'MoMo',
+        'sepay': 'SePay',
+        'cod': 'Thanh toán khi nhận hàng'
+      };
+      return map[method] || method;
     },
 
     // Helper đơn giản để highlight timeline
@@ -197,11 +274,11 @@ export default {
 
 <style scoped>
 .order-detail-page {
-    background-color: #f5f5f5;
+    background-color: #f8f7f4;
     min-height: 100vh;
     padding: 120px 0;
-    font-family: 'Helvetica Neue', Arial, sans-serif;
-    color: #333;
+    font-family: 'Outfit', sans-serif;
+    color: #5a4d44;
 }
 .container {
     max-width: 900px;
@@ -212,10 +289,11 @@ export default {
 /* CARDS */
 .section-card {
     background: #fff;
-    border-radius: 3px;
-    box-shadow: 0 1px 1px 0 rgba(0,0,0,0.05);
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.04);
     padding: 24px;
-    margin-bottom: 15px;
+    margin-bottom: 20px;
+    border: 1px solid #f0eae3;
 }
 
 /* HEADER */
@@ -229,159 +307,275 @@ export default {
     border: none;
     display: flex;
     align-items: center;
-    gap: 5px;
+    gap: 8px;
     cursor: pointer;
-    color: #666;
-    font-size: 13px;
-    font-weight: 500;
+    color: #888;
+    font-size: 14px;
+    font-weight: 700;
+    transition: color 0.3s;
+}
+.back-link:hover {
+    color: #a08b7a;
 }
 .order-code {
     margin-left: 15px;
-    font-weight: 600;
-    font-size: 14px;
+    font-weight: 800;
+    font-size: 16px;
+    color: #5a4d44;
 }
 .status-text {
-    color: #ee4d2d;
-    font-weight: 600;
+    font-weight: 800;
     text-transform: uppercase;
+    letter-spacing: 1px;
+    font-size: 16px;
 }
+.status-text.pending { color: #a08b7a; }
+.status-text.confirmed, .status-text.completed { color: #28a745; }
+.status-text.shipping { color: #007bff; }
+.status-text.cancelled, .status-text.failed { color: #dc3545; }
 
 /* STEPPER */
 .status-stepper {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: space-between;
+    padding: 40px 60px;
+    background: #fff;
 }
-.step {
+.step-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 15px;
+    flex: 1;
+    position: relative;
+    z-index: 1;
+}
+.step-circle {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background: #fff;
+    border: 2px solid #f0eae3;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #bbb;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.step-label {
     font-size: 14px;
     color: #bbb;
-    font-weight: 500;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    transition: all 0.4s;
+    white-space: nowrap;
 }
-.step.active {
-    color: #26aa99; /* Màu xanh Shopee mall hoặc #ee4d2d */
+
+/* Active & Current States */
+.step-item.active .step-circle {
+    background: #a08b7a;
+    border-color: #a08b7a;
+    color: #fff;
+    box-shadow: 0 10px 20px rgba(160, 139, 122, 0.2);
 }
-.line {
+.step-item.active .step-label {
+    color: #a08b7a;
+}
+
+.step-item.current .step-circle {
+    background: #5a4d44;
+    border-color: #5a4d44;
+    transform: scale(1.15);
+    box-shadow: 0 0 0 6px rgba(90, 77, 68, 0.1);
+}
+.step-item.current .step-label {
+    color: #5a4d44;
+    font-weight: 800;
+}
+
+/* Lines */
+.step-line {
     flex: 1;
     height: 2px;
-    background: #e0e0e0;
-    margin: 0 10px;
+    background: #f0eae3;
+    margin-top: 25px; /* Căn giữa với vòng tròn */
+    position: relative;
+    transition: all 0.4s;
+}
+.step-line.active {
+    background: #a08b7a;
 }
 
 /* ADDRESS */
 .address-card h3 {
     margin: 0 0 15px 0;
-    font-size: 16px;
-    font-weight: 600;
+    font-size: 20px;
+    font-weight: 800;
+    color: #5a4d44;
 }
 .address-info p {
-    margin: 5px 0;
-    font-size: 14px;
-    color: #555;
+    margin: 10px 0;
+    font-size: 15px;
+    color: #666;
 }
 .address-info .name {
-    font-weight: 600;
-    color: #000;
+    font-weight: 800;
+    color: #5a4d44;
+    font-size: 16px;
 }
 
 /* PRODUCTS */
 .product-item {
     display: flex;
-    gap: 15px;
-    padding-bottom: 15px;
-    border-bottom: 1px solid #f1f1f1;
-    margin-bottom: 15px;
+    gap: 20px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid #f8f7f4;
+    margin-bottom: 20px;
 }
 .product-item:last-child {
     border-bottom: none;
     margin-bottom: 0;
 }
 .img-wrapper img {
-    width: 80px;
-    height: 80px;
+    width: 90px;
+    height: 90px;
     object-fit: cover;
-    border: 1px solid #e1e1e1;
+    border-radius: 8px;
+    border: 1px solid #f0eae3;
 }
 .info-wrapper {
     flex: 1;
 }
 .info-wrapper .name {
-    font-size: 15px;
-    color: #333;
-    margin-bottom: 5px;
+    font-size: 18px;
+    color: #5a4d44;
+    font-weight: 700;
+    margin-bottom: 8px;
 }
 .info-wrapper .variant {
-    font-size: 13px;
+    font-size: 14px;
     color: #888;
 }
 .info-wrapper .qty {
-    margin-top: 5px;
-    font-size: 14px;
+    margin-top: 8px;
+    font-size: 15px;
+    color: #555;
 }
 .price-wrapper {
-    font-weight: 500;
-    color: #ee4d2d;
+    font-weight: 800;
+    color: #5a4d44;
+    font-size: 17px;
 }
 
 /* SUMMARY */
 .summary-card {
-    background: #fffbf8; /* Màu nền nhẹ nhàng cho phần tiền */
-    border-top: 1px dotted #e8e8e8;
+    background: #fdfcfb;
+    border-top: 1px solid #f0eae3;
 }
 .summary-row {
     display: flex;
     justify-content: flex-end;
-    gap: 20px;
-    margin-bottom: 10px;
-    font-size: 14px;
-    color: #777;
+    gap: 30px;
+    margin-bottom: 12px;
+    font-size: 15px;
+    color: #666;
 }
 .summary-row span:last-child {
     width: 150px;
     text-align: right;
-    color: #333;
+    color: #5a4d44;
+    font-weight: 600;
 }
 .summary-row.total {
-    margin-top: 20px;
-    font-size: 18px;
+    margin-top: 25px;
+    font-size: 20px;
     align-items: center;
+    border-top: 1px dashed #e6e0d8;
+    padding-top: 20px;
 }
 .total-price {
-    color: #ee4d2d !important;
-    font-size: 24px;
-    font-weight: 600;
+    color: #a08b7a !important;
+    font-size: 32px;
+    font-weight: 800;
 }
 .payment-method-info {
     text-align: right;
     margin-top: 20px;
-    font-size: 13px;
+    font-size: 14px;
     color: #888;
-    padding-top: 10px;
-    border-top: 1px solid #eee;
 }
+.payment-status-tag {
+    margin-top: 8px;
+    font-weight: 800;
+    text-transform: uppercase;
+    font-size: 13px;
+}
+.payment-status-tag.paid { color: #28a745; }
+.payment-status-tag.pending { color: #a08b7a; }
+.payment-status-tag.failed { color: #dc3545; }
+
+/* TRANSACTION HISTORY */
+.payment-history-section {
+    margin-top: 40px;
+    border-top: 1px solid #f0eae3;
+    padding-top: 25px;
+}
+.payment-history-section .section-title {
+    font-size: 14px;
+    font-weight: 800;
+    margin-bottom: 20px;
+    color: #a08b7a;
+    letter-spacing: 2px;
+}
+.payment-log-item {
+    background: #fff;
+    padding: 15px 20px;
+    border-radius: 12px;
+    margin-bottom: 12px;
+    border: 1px solid #f0eae3;
+    transition: transform 0.2s;
+}
+.payment-log-item:hover { transform: translateX(5px); }
+.log-main {
+    display: flex;
+    justify-content: space-between;
+    font-weight: 800;
+    font-size: 16px;
+    color: #5a4d44;
+}
+.log-sub {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 13px;
+    color: #999;
+    margin-top: 5px;
+}
+.status-badge {
+    font-size: 11px;
+    font-weight: 800;
+    text-transform: uppercase;
+    padding: 4px 10px;
+    border-radius: 4px;
+}
+.status-badge.success { background: #e6f4ea; color: #28a745; border: 1px solid #c3e6cb; }
+.status-badge.failed { background: #fce8e6; color: #dc3545; }
 
 /* LOADING & ERROR */
-.loading-box, .error-box {
-    text-align: center;
-    padding: 50px;
-    background: #fff;
-}
 .spinner {
-    width: 30px;
-    height: 30px;
-    border: 3px solid #f3f3f3;
-    border-top: 3px solid #ee4d2d;
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-    margin: 0 auto 15px;
+    border-top: 3px solid #a08b7a;
 }
-@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-
 .btn-back {
-    margin-top: 15px;
-    padding: 10px 20px;
-    background: #ee4d2d;
+    margin-top: 20px;
+    padding: 12px 35px;
+    background: #a08b7a;
     color: #fff;
-    border: none;
-    cursor: pointer;
+    border-radius: 8px;
+    font-weight: 700;
+    font-size: 15px;
+    transition: all 0.3s;
 }
+.btn-back:hover { background: #5a4d44; transform: translateY(-2px); }
 </style>

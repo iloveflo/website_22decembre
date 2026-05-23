@@ -60,8 +60,15 @@
             <select v-model="form.status">
               <option value="active">Đang bán</option>
               <option value="inactive">Ngừng bán</option>
-              <option value="out_of_stock">Hết hàng</option>
+              <option value="out_of_stock">Hết hàng (Tự động nếu kho = 0)</option>
             </select>
+          </div>
+
+          <div class="form-group">
+            <label>Tổng tồn kho (Tự động tính)</label>
+            <div class="total-stock-badge">
+              {{ totalQuantity }}
+            </div>
           </div>
         </div>
 
@@ -70,84 +77,94 @@
           <textarea v-model="form.description" rows="3" />
         </div>
 
+        <!-- Cấu hình Thuộc tính (Động) -->
+        <div class="attributes-config">
+          <div class="config-header">
+            <h3>Cấu hình thuộc tính (VD: Màu sắc, Kích thước)</h3>
+            <button type="button" class="btn small" @click="addAttributeKey">
+              + Thêm thuộc tính
+            </button>
+          </div>
+          <div class="attribute-keys-list">
+            <div v-for="(key, kIdx) in attributeKeys" :key="kIdx" class="key-item">
+              <select v-model="attributeKeys[kIdx]" @change="onAttributeKeyChange(kIdx)" style="border:none; outline:none; font-size:13px; padding:4px;">
+                <option value="" disabled>-- Chọn thuộc tính --</option>
+                <option value="Màu sắc">Màu sắc</option>
+                <option value="Kích thước">Kích thước</option>
+                <option value="Chất liệu">Chất liệu</option>
+                <option value="Kiểu dáng">Kiểu dáng</option>
+                <option value="Giới tính">Giới tính</option>
+              </select>
+              <button type="button" class="btn-remove" @click="removeAttributeKey(kIdx)">×</button>
+            </div>
+          </div>
+        </div>
+
         <!-- Biến thể -->
         <div class="variants-block">
           <div class="variants-header">
-            <h3>Biến thể (màu / size / số lượng)</h3>
-            <button type="button" class="btn small" @click="addVariantRow">
+            <h3>Danh sách biến thể</h3>
+            <button type="button" class="btn small primary" @click="addVariantRow">
               + Thêm biến thể
             </button>
           </div>
 
-          <table class="variant-table">
-            <thead>
-              <tr>
-                <th>Màu</th>
-                <th>Mã màu (#hex)</th>
-                <th>Size</th>
-                <th>Số lượng</th>
-                <th>Phụ phí (+VND)</th>
-                <th>SKU riêng</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="(v, index) in variants" :key="index">
-                <td>
-                  <input v-model="v.color_name" type="text" placeholder="Trắng" />
-                </td>
-                <td>
-                  <input
-                    v-model="v.color_code"
-                    type="text"
-                    placeholder="#FFFFFF"
-                  />
-                </td>
-                <td>
-                  <select v-model="v.size">
-                    <option value="S">S</option>
-                    <option value="M">M</option>
-                    <option value="L">L</option>
-                    <option value="XL">XL</option>
-                    <option value="XXL">XXL</option>
-                  </select>
-                </td>
-                <td>
-                  <input
-                    v-model.number="v.quantity"
-                    type="number"
-                    min="0"
-                    style="width: 80px"
-                  />
-                </td>
-                <td>
-                  <input
-                    v-model.number="v.additional_price"
-                    type="number"
-                    min="0"
-                    style="width: 100px"
-                  />
-                </td>
-                <td>
-                  <input v-model="v.sku" type="text" placeholder="Tự sinh nếu bỏ trống" />
-                </td>
-                <td class="text-right">
-                  <button
-                    type="button"
-                    class="btn small danger"
-                    v-if="variants.length > 1"
-                    @click="removeVariantRow(index)"
-                  >
-                    Xóa
-                  </button>
-                </td>
-              </tr>
-            </tbody>
-          </table>
+          <div class="variant-table-wrapper">
+            <table class="variant-table">
+              <thead>
+                <tr>
+                  <th v-for="key in attributeKeys" :key="key">{{ key || 'Thuộc tính' }}</th>
+                  <th>Số lượng</th>
+                  <th>Phụ phí (+VND)</th>
+                  <th>SKU riêng</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="(v, index) in variants" :key="index">
+                  <td v-for="key in attributeKeys" :key="key">
+                    <select v-if="attributeOptions[key]" v-model="v.variant_attributes[key]">
+                      <option value="" disabled>-- Chọn --</option>
+                      <option v-for="opt in attributeOptions[key]" :key="opt" :value="opt">{{ opt }}</option>
+                    </select>
+                    <input v-else v-model="v.variant_attributes[key]" type="text" :placeholder="'Giá trị ' + key" />
+                  </td>
+                  <td>
+                    <input
+                      v-model.number="v.quantity"
+                      type="number"
+                      min="0"
+                      style="width: 80px"
+                    />
+                  </td>
+                  <td>
+                    <input
+                      v-model.number="v.additional_price"
+                      type="number"
+                      min="0"
+                      style="width: 100px"
+                    />
+                  </td>
+                  <td>
+                    <input v-model="v.sku" type="text" placeholder="Tự sinh" />
+                  </td>
+                  <td class="text-right">
+                    <button
+                      type="button"
+                      class="btn-icon danger"
+                      v-if="variants.length > 1"
+                      @click="removeVariantRow(index)"
+                    >
+                      Xóa
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
 
           <p class="variant-hint">
-            * Quantity tổng của sản phẩm sẽ tự động = tổng quantity của tất cả
-            biến thể.
+            * Hệ thống sẽ tự động tính toán tổng tồn kho từ các biến thể này.
           </p>
         </div>
 
@@ -167,11 +184,12 @@
 <script setup>
 import { ref, watch, computed } from 'vue'
 import axios from 'axios'
+import Swal from 'sweetalert2'
 
 const props = defineProps({
   mode: {
     type: String,
-    default: 'create' // 'create' | 'edit'
+    default: 'create'
   },
   product: {
     type: Object,
@@ -186,6 +204,7 @@ const props = defineProps({
 const emit = defineEmits(['close', 'saved'])
 
 const selectedParentId = ref('')
+const attributeKeys = ref(['Màu sắc', 'Kích thước']) // Mặc định
 
 const form = ref({
   name: '',
@@ -200,18 +219,59 @@ const submitting = ref(false)
 
 const isEdit = computed(() => props.mode === 'edit')
 
+const baseAttributeOptions = {
+  'Màu sắc': ['Đen', 'Trắng', 'Đỏ', 'Xanh', 'Vàng', 'Xám', 'Hồng', 'Cam'],
+  'Kích thước': ['S', 'M', 'L', 'XL', 'XXL'],
+  'Chất liệu': ['Cotton', 'Kaki', 'Denim', 'Nỉ', 'Lụa', 'Len', 'Polyester', 'Da'],
+  'Kiểu dáng': ['Regular Fit', 'Slim Fit', 'Oversize', 'Khác'],
+  'Giới tính': ['Nam', 'Nữ', 'Unisex']
+}
+
+const attributeOptions = computed(() => {
+  const options = JSON.parse(JSON.stringify(baseAttributeOptions));
+  // Add any existing values from variants to the options so they don't get lost
+  variants.value.forEach(v => {
+    Object.keys(v.variant_attributes || {}).forEach(key => {
+      const val = v.variant_attributes[key];
+      if (val && options[key] && !options[key].includes(val)) {
+        options[key].push(val);
+      }
+    });
+  });
+  return options;
+});
+
 // ---- helpers ----
+const createEmptyAttributes = () => {
+  const attrs = {}
+  attributeKeys.value.forEach(key => {
+    if (key) attrs[key] = ''
+  })
+  return attrs
+}
+
 const defaultVariant = () => ({
-  color_name: '',
-  color_code: '',
-  size: 'M',
+  variant_attributes: createEmptyAttributes(),
   quantity: 0,
   additional_price: 0,
   sku: ''
 })
 
+const totalQuantity = computed(() => {
+  return variants.value.reduce((sum, v) => sum + (Number(v.quantity) || 0), 0)
+})
+
+watch(totalQuantity, (newVal) => {
+  if (newVal === 0) {
+    form.value.status = 'out_of_stock'
+  } else if (form.value.status === 'out_of_stock' && newVal > 0) {
+    form.value.status = 'active'
+  }
+})
+
 const resetForm = () => {
   selectedParentId.value = ''
+  attributeKeys.value = ['Màu sắc', 'Kích thước']
   form.value = {
     name: '',
     category_id: '',
@@ -240,6 +300,42 @@ const onParentChange = () => {
   form.value.category_id = ''
 }
 
+// Thuộc tính động
+const addAttributeKey = () => {
+  attributeKeys.value.push('')
+}
+
+const removeAttributeKey = (index) => {
+  const keyToRemove = attributeKeys.value[index]
+  attributeKeys.value.splice(index, 1)
+  // Xóa key này khỏi tất cả variants
+  variants.value.forEach(v => {
+    delete v.variant_attributes[keyToRemove]
+  })
+}
+
+const syncVariantsKeys = () => {
+  variants.value.forEach(v => {
+    attributeKeys.value.forEach(key => {
+      if (key && v.variant_attributes[key] === undefined) {
+        v.variant_attributes[key] = ''
+      }
+    })
+  })
+}
+
+const onAttributeKeyChange = (index) => {
+  const selectedKey = attributeKeys.value[index]
+  const isDuplicate = attributeKeys.value.some((key, i) => key === selectedKey && i !== index)
+  
+  if (isDuplicate && selectedKey) {
+    Swal.fire('Cảnh báo', `Thuộc tính "${selectedKey}" đã được chọn!`, 'warning')
+    attributeKeys.value[index] = '' // reset
+    return
+  }
+  syncVariantsKeys()
+}
+
 // Map dữ liệu khi edit
 watch(
   () => props.product,
@@ -261,10 +357,15 @@ watch(
       }
 
       if (val.variants && val.variants.length) {
+        // Lấy tất cả các keys từ variant đầu tiên (giả sử chúng giống nhau)
+        const firstVariantAttrs = val.variants[0].variant_attributes || {}
+        attributeKeys.value = Object.keys(firstVariantAttrs)
+        if (attributeKeys.value.length === 0) {
+            attributeKeys.value = ['Màu sắc', 'Kích thước']
+        }
+
         variants.value = val.variants.map(v => ({
-          color_name: v.color_name || '',
-          color_code: v.color_code || '',
-          size: v.size || 'M',
+          variant_attributes: v.variant_attributes || createEmptyAttributes(),
           quantity: v.quantity ?? 0,
           additional_price: v.additional_price ?? 0,
           sku: v.sku || ''
@@ -292,12 +393,37 @@ const removeVariantRow = (index) => {
 const handleSubmit = async () => {
   if (!form.value.name || !form.value.category_id) return
 
-  // chỉ gửi những biến thể có size và (quantity >0 hoặc có thông tin màu/sku)
-  const cleanVariants = variants.value.filter(
-    v =>
-      v.size &&
-      (v.quantity > 0 || v.color_name || v.color_code || v.sku)
+  // Làm sạch attributes: bỏ các key rỗng
+  const processedVariants = variants.value.map(v => {
+    const cleanAttrs = {}
+    attributeKeys.value.forEach(k => {
+      if (k && v.variant_attributes[k]) {
+        cleanAttrs[k] = v.variant_attributes[k]
+      }
+    })
+    return {
+      ...v,
+      variant_attributes: cleanAttrs
+    }
+  })
+
+  // Chỉ gửi những biến thể có ít nhất 1 thuộc tính hoặc có số lượng > 0
+  const cleanVariants = processedVariants.filter(
+    v => Object.keys(v.variant_attributes).length > 0 || v.quantity > 0
   )
+
+  // Kiểm tra trùng lặp biến thể
+  const variantSet = new Set()
+  for (const v of cleanVariants) {
+    const sortedKeys = Object.keys(v.variant_attributes).sort()
+    const attrString = sortedKeys.map(k => `${k}:${v.variant_attributes[k]}`).join('|')
+    
+    if (variantSet.has(attrString)) {
+      Swal.fire('Cảnh báo', 'Không được thêm trùng lặp các biến thể có cùng giá trị thuộc tính!', 'warning')
+      return // Dừng submit
+    }
+    variantSet.add(attrString)
+  }
 
   const payload = {
     ...form.value,
@@ -308,16 +434,17 @@ const handleSubmit = async () => {
   try {
     if (isEdit.value && props.product) {
       await axios.post(`/admin/products/${props.product.id}`, {
-    ...payload,      // Copy toàn bộ dữ liệu form cũ
-    _method: 'PUT'   // Thêm dòng này để báo cho Laravel biết đây là PUT
-});
+        ...payload,
+        _method: 'PUT'
+      });
     } else {
       await axios.post('/admin/products', payload)
     }
+    Swal.fire('Thành công', 'Lưu sản phẩm thành công', 'success')
     emit('saved')
   } catch (e) {
     console.error(e)
-    alert('Lưu sản phẩm thất bại')
+    Swal.fire('Lỗi', 'Lưu sản phẩm thất bại', 'error')
   } finally {
     submitting.value = false
   }
@@ -369,7 +496,7 @@ const handleSubmit = async () => {
   margin: 0;
   font-size: 24px;
   font-weight: 700;
-  color: #000;
+  color: #333333;
   letter-spacing: -0.5px;
 }
 
@@ -391,8 +518,8 @@ const handleSubmit = async () => {
 
 .btn-close:hover {
   background: #f5f5f5;
-  border-color: #000;
-  color: #000;
+  border-color: #333333;
+  color: #333333;
 }
 
 /* ============== MODAL BODY ============== */
@@ -439,12 +566,23 @@ const handleSubmit = async () => {
 .form-group input:focus,
 .form-group select:focus,
 .form-group textarea:focus {
-  border-color: #000;
+  border-color: #333333;
   background: #ffffff;
 }
 
 .form-group textarea {
   resize: vertical;
+}
+
+.total-stock-badge {
+  background: #f1f2f6;
+  padding: 12px 16px;
+  border-radius: 4px;
+  font-weight: 800;
+  font-size: 1.2rem;
+  color: #1e1e2d;
+  border: 1px dashed #A08B7A;
+  text-align: center;
 }
 
 .form-group select {
@@ -477,7 +615,7 @@ const handleSubmit = async () => {
   margin: 0;
   font-size: 16px;
   font-weight: 700;
-  color: #000;
+  color: #333333;
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
@@ -532,7 +670,7 @@ const handleSubmit = async () => {
 
 .variant-table input:focus,
 .variant-table select:focus {
-  border-color: #000;
+  border-color: #333333;
 }
 
 .variant-table input::placeholder {
@@ -587,9 +725,9 @@ const handleSubmit = async () => {
 }
 
 .btn.primary {
-  background: #000;
+  background: #A08B7A;
   color: #fff;
-  border-color: #000;
+  border-color: #333333;
   font-weight: 600;
 }
 
@@ -621,6 +759,91 @@ const handleSubmit = async () => {
 .btn.danger:hover {
   background: #dc2626;
   color: #fff;
+}
+
+/* Dynamic Attributes Config */
+.attributes-config {
+  margin-bottom: 24px;
+  background: #f9f9f9;
+  padding: 16px;
+  border: 1px dashed #d0d0d0;
+}
+
+.config-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.config-header h3 {
+  margin: 0;
+  font-size: 14px;
+  color: #555;
+  text-transform: uppercase;
+}
+
+.attribute-keys-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.key-item {
+  display: flex;
+  align-items: center;
+  background: #fff;
+  border: 1px solid #d0d0d0;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+.key-item input {
+  border: none;
+  outline: none;
+  font-size: 13px;
+  width: 120px;
+  padding: 4px;
+}
+
+.btn-remove {
+  background: none;
+  border: none;
+  color: #999;
+  cursor: pointer;
+  font-size: 18px;
+  margin-left: 4px;
+  padding: 0 4px;
+}
+
+.btn-remove:hover {
+  color: #dc2626;
+}
+
+.variant-table-wrapper {
+  overflow-x: auto;
+  border: 1px solid #e5e5e5;
+  margin-bottom: 12px;
+}
+
+.btn-icon {
+  background: none;
+  border: 1px solid #d0d0d0;
+  padding: 6px 12px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: all 0.2s;
+}
+
+.btn-icon.danger {
+  color: #dc2626;
+  border-color: #fecaca;
+}
+
+.btn-icon.danger:hover {
+  background: #dc2626;
+  color: #fff;
+  border-color: #dc2626;
 }
 
 /* ============== UTILITIES ============== */

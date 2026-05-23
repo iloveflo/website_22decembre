@@ -24,6 +24,7 @@ class Product extends Model
         'cost_price',
         'sale_price',
         'sku',
+        'stock_quantity',
         'status',
         'featured',
         'view_count',
@@ -44,22 +45,13 @@ class Product extends Model
      * Tự động thêm attribute ảo vào JSON khi return response
      * Giúp frontend nhận được field 'stock_quantity' mà không cần gọi hàm
      */
-    protected $appends = ['stock_quantity', 'main_image_url'];
+    protected $appends = ['main_image_url'];
 
     // ==========================================
     // ACCESSORS (Thuộc tính ảo)
     // ==========================================
 
-    /**
-     * Lấy tổng tồn kho từ các biến thể (Variants)
-     * Gọi bằng: $product->stock_quantity
-     */
-    public function getStockQuantityAttribute()
-    {
-        // Nếu quan hệ variants đã được eager load (with('variants')), nó sẽ dùng luôn collection đó để tính
-        // Nếu chưa, nó sẽ query database.
-        return $this->variants->sum('quantity');
-    }
+    // stock_quantity is now a real database column.
 
     /**
      * Kiểm tra xem sản phẩm còn hàng không
@@ -90,7 +82,7 @@ class Product extends Model
         }
 
         // Mặc định
-        return 'images/placeholder.png';
+        return 'https://placehold.co/300x300?text=No+Image';
     }
 
     // 2. Attribute trả về đường dẫn TUYỆT ĐỐI (Dùng cho Frontend/Vue hiển thị)
@@ -99,18 +91,43 @@ class Product extends Model
         // Gọi lại hàm bên trên để lấy đường dẫn tương đối
         $relativePath = $this->main_image_path;
 
-        // Kiểm tra nếu là ảnh placeholder cứng thì không cần nối 'storage' (tùy cấu trúc thư mục của bạn)
-        if ($relativePath === 'images/placeholder.png') {
-            return asset($relativePath);
+        if (filter_var($relativePath, FILTER_VALIDATE_URL)) {
+            return $relativePath;
         }
 
-        // Nối domain vào. 
-        // Nếu bạn lưu trong storage/app/public thì cần thêm tiền tố 'storage/'
-        // Nếu đường dẫn trong DB đã có chữ 'storage/' rồi thì chỉ cần asset()
-        return asset($relativePath);
+        return '/' . ltrim($relativePath, '/');
     }
 
 
+
+    // ==========================================
+    // SCOPES (Phạm vi truy vấn)
+    // ==========================================
+
+    /**
+     * Chỉ lấy các sản phẩm thuộc danh mục đang hoạt động (active)
+     */
+    public function scopeActiveCategory($query)
+    {
+        return $query->whereHas('category', function ($q) {
+            // 1. Bản thân danh mục phải active
+            $q->where('categories.status', 'active')
+              ->where(function ($sub) {
+                  // 2. Kiểm tra Cha (nếu có)
+                  $sub->whereNull('parent_id')
+                      ->orWhereHas('parent', function ($p) {
+                          $p->where('status', 'active')
+                            // 3. Kiểm tra Ông nội (nếu có)
+                            ->where(function ($grand) {
+                                $grand->whereNull('parent_id')
+                                      ->orWhereHas('parent', function ($gp) {
+                                          $gp->where('status', 'active');
+                                      });
+                            });
+                      });
+              });
+        });
+    }
 
     // ==========================================
     // RELATIONS (Quan hệ)

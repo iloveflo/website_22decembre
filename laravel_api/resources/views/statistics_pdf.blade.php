@@ -2,271 +2,330 @@
 <html>
 <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
-    <title>Báo Cáo Kinh Doanh Florentic</title>
+    <title>Báo Cáo Hiệu Suất Kinh Doanh</title>
     <style>
-        /* Cấu hình Font chữ hỗ trợ tiếng Việt */
+        /* PDF Engine specific styles */
+        @page {
+            margin: 1cm;
+        }
+
+        html, body, div, span, applet, object, iframe,
+        h1, h2, h3, h4, h5, h6, p, blockquote, pre,
+        a, abbr, acronym, address, big, cite, code,
+        del, dfn, em, img, ins, kbd, q, s, samp,
+        small, strike, strong, sub, sup, tt, var,
+        b, u, i, center,
+        dl, dt, dd, ol, ul, li,
+        fieldset, form, label, legend,
+        table, caption, tbody, tfoot, thead, tr, th, td,
+        article, aside, canvas, details, embed, 
+        figure, figcaption, footer, header, hgroup, 
+        menu, nav, output, ruby, section, summary,
+        time, mark, audio, video {
+            font-family: "DejaVu Sans", sans-serif;
+        }
+
         body { 
-            font-family: 'DejaVu Sans', sans-serif; 
-            font-size: 11px; 
-            color: #333; 
-            line-height: 1.5;
-        }
-
-        /* HEADER BRANDING */
-        .brand-header {
-            text-align: center;
-            margin-bottom: 30px;
-            border-bottom: 2px solid #000; /* Đường kẻ đậm chất thời trang */
-            padding-bottom: 15px;
-        }
-        .brand-name {
-            font-size: 24px;
-            font-weight: bold;
-            text-transform: uppercase;
-            letter-spacing: 2px; /* Dãn chữ tạo cảm giác sang trọng */
+            font-size: 10px; 
+            color: #1e293b; 
+            line-height: 1.6;
             margin: 0;
-            color: #000;
+            padding: 0;
         }
-        .brand-sub {
-            font-size: 10px;
-            color: #666;
-            text-transform: uppercase;
-            margin-top: 5px;
+
+        /* HEADER */
+        .brand-name {
+            font-size: 28px;
+            font-weight: bold;
+            color: #1e293b;
+            margin: 0;
+            letter-spacing: -1px;
         }
+
         .report-title {
-            margin-top: 15px;
-            font-size: 16px;
-            font-weight: bold;
-            text-transform: uppercase;
+            font-size: 18px;
+            font-weight: normal; /* Dùng normal để tránh lỗi font Bold không hỗ trợ tiếng Việt */
+            color: #0f172a;
+            margin-bottom: 2px;
         }
 
-        /* INFO SECTION */
-        .meta-table {
+        .period-badge {
+            display: inline-block;
+            background: #f1f5f9;
+            color: #475569;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 11px;
+        }
+
+        /* CLEARFIX */
+        .clearfix::after {
+            content: "";
+            clear: both;
+            display: table;
+        }
+
+        /* KPI SECTION */
+        .kpi-container {
             width: 100%;
             margin-bottom: 30px;
         }
-        .meta-table td {
-            border: none;
-            padding: 2px;
-        }
-        .meta-label {
-            font-weight: bold;
-            color: #000;
-            width: 120px;
-        }
 
-        /* KPI CARDS (Dùng Table layout cho PDF an toàn hơn float) */
-        .kpi-wrapper {
-            width: 100%;
-            margin-bottom: 30px;
-        }
-        .kpi-cell {
-            width: 25%;
-            padding: 0 5px;
-        }
         .kpi-box {
-            background-color: #f5f5f5; /* Xám nhẹ */
-            border: 1px solid #e0e0e0;
-            padding: 15px 10px;
-            text-align: center;
+            background-color: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 15px;
+            text-align: left;
         }
-        .kpi-title {
+
+        .kpi-label {
             font-size: 9px;
-            text-transform: uppercase;
-            color: #666;
-            letter-spacing: 1px;
+            font-weight: bold;
+            color: #64748b;
             margin-bottom: 5px;
         }
+
         .kpi-value {
-            font-size: 14px;
-            font-weight: bold;
-            color: #000;
+            font-size: 15px;
+            font-weight: 800;
+            color: #1e293b;
         }
 
-        /* DATA TABLES */
-        h3 {
-            font-size: 13px;
+        /* TABLES */
+        .section-header {
+            font-size: 14px;
+            font-weight: bold;
+            color: #0f172a;
+            margin: 25px 0 15px 0;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #f1f5f9;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 10px 12px;
+            border-bottom: 1px solid #f1f5f9;
+            vertical-align: middle;
+            word-wrap: break-word;
+            overflow: hidden;
+        }
+
+        th {
+            background-color: #f1f5f9;
+            color: #475569;
+            text-align: left;
+            font-weight: bold;
+            font-size: 9px;
             text-transform: uppercase;
-            border-left: 3px solid #000;
-            padding-left: 10px;
-            margin-bottom: 15px;
-            color: #000;
-        }
-        
-        table.data-table { 
-            width: 100%; 
-            border-collapse: collapse; 
-            margin-bottom: 30px; 
-        }
-        table.data-table th { 
-            border-bottom: 1px solid #000; 
-            border-top: 1px solid #000; 
-            padding: 10px 5px; 
-            text-align: left; 
-            font-size: 10px;
-            text-transform: uppercase;
-            background-color: #fff; /* Nền trắng sạch sẽ */
-            color: #000;
-        }
-        table.data-table td { 
-            border-bottom: 1px solid #eee; 
-            padding: 10px 5px; 
-            color: #444;
-        }
-        /* Zebra stripe nhẹ */
-        table.data-table tr:nth-child(even) {
-            background-color: #fafafa;
         }
 
         .text-right { text-align: right; }
         .text-center { text-align: center; }
+        .text-bold { font-weight: bold; }
+        .text-indigo { color: #6366f1; }
 
-        /* STATUS BADGES - Style tối giản */
-        .status-text {
-            font-size: 9px;
+        /* STATUS BADGES */
+        .badge {
+            padding: 3px 8px;
+            border-radius: 6px;
+            font-size: 8px;
             font-weight: bold;
             text-transform: uppercase;
         }
-        .text-success { color: #10b981; }
-        .text-warning { color: #d97706; }
-        .text-danger { color: #ef4444; }
-        .text-info { color: #3b82f6; }
+        .badge-success { background: #dcfce7; color: #166534; }
+        .badge-info { background: #e0f2fe; color: #075985; }
+        .badge-warning { background: #fef3c7; color: #92400e; }
+        .badge-danger { background: #fee2e2; color: #991b1b; }
 
         /* FOOTER */
         .footer {
-            position: fixed;
-            bottom: 0;
-            width: 100%;
+            margin-top: 50px;
             text-align: center;
             font-size: 9px;
-            color: #999;
-            border-top: 1px solid #eee;
-            padding-top: 10px;
+            color: #94a3b8;
+            border-top: 1px solid #f1f5f9;
+            padding-top: 20px;
         }
     </style>
 </head>
 <body>
-    <div class="brand-header">
-        <h1 class="brand-name">Florentic</h1>
-        <div class="brand-sub">Professional Fashion Store</div>
-        <div class="report-title">Báo Cáo Hiệu Suất Kinh Doanh</div>
-    </div>
-
-    <table class="meta-table">
+    <table style="width: 100%; border-bottom: 3px solid #6366f1; padding-bottom: 20px; margin-bottom: 30px;">
         <tr>
-            <td class="meta-label">Thời gian:</td>
-            <td>{{ $period_text }}</td>
-            <td class="meta-label text-right">Ngày xuất:</td>
-            <td class="text-right">{{ \Carbon\Carbon::now()->format('d/m/Y H:i') }}</td>
-        </tr>
-        <tr>
-            <td class="meta-label">Người lập:</td>
-            <td>{{ auth()->user()->full_name ?? 'Quản trị viên' }}</td>
-            <td class="meta-label text-right">Bộ phận:</td>
-            <td class="text-right">Quản lý</td>
+            <td style="vertical-align: top; border: none; padding: 0;">
+                <div class="brand-name" style="font-size: 28px; font-weight: bold; color: #1e293b; margin: 0;">22.Décembre</div>
+                <div class="brand-sub" style="font-size: 11px; color: #64748b;">Hệ thống quản lý kinh doanh thời trang</div>
+            </td>
+            <td style="text-align: right; vertical-align: top; border: none; padding: 0;">
+                <div class="report-title" style="font-size: 22px; color: #0f172a; margin-bottom: 5px;">BÁO CÁO HIỆU SUẤT</div>
+                <div class="period-badge" style="display: inline-block; background: #f1f5f9; color: #475569; padding: 5px 15px; border-radius: 20px; font-weight: bold; font-size: 12px; margin-bottom: 10px;">{{ $period_text }}</div>
+                <div class="meta-info" style="font-size: 10px; color: #64748b; line-height: 1.4;">
+                    Người xuất: <strong>{{ $exported_by }}</strong> <br>
+                    Thời gian: <strong>{{ $exported_at }}</strong>
+                </div>
+            </td>
         </tr>
     </table>
 
-    
-
-[Image of business report visualization]
-
-
-    <table class="kpi-wrapper">
+    <table class="kpi-container">
         <tr>
-            <td class="kpi-cell">
+            <td style="width: 25%; padding-right: 10px;">
                 <div class="kpi-box">
-                    <div class="kpi-title">Tổng Doanh Thu</div>
-                    <div class="kpi-value">{{ number_format($overview['revenue']) }} ₫</div>
+                    <div class="kpi-label">Tổng Doanh Thu</div>
+                    <div class="kpi-value">{{ number_format($overview['revenue']) }} VND</div>
                 </div>
             </td>
-            <td class="kpi-cell">
+            <td style="width: 25%; padding: 0 5px;">
                 <div class="kpi-box">
-                    <div class="kpi-title">Đơn Hàng</div>
+                    <div class="kpi-label">Số Đơn Hàng</div>
                     <div class="kpi-value">{{ number_format($overview['orderCount']) }}</div>
                 </div>
             </td>
-            <td class="kpi-cell">
+            <td style="width: 25%; padding: 0 5px;">
                 <div class="kpi-box">
-                    <div class="kpi-title">Khách Hàng Mới</div>
-                    <div class="kpi-value">{{ number_format($overview['newCustomers']) }}</div>
+                    <div class="kpi-label">Khách Mua Hàng</div>
+                    <div class="kpi-value">{{ number_format($overview['activeCustomers']) }}</div>
                 </div>
             </td>
-            <td class="kpi-cell">
+            <td style="width: 25%; padding-left: 10px;">
                 <div class="kpi-box">
-                    <div class="kpi-title">AOV (Trung bình)</div>
-                    <div class="kpi-value">{{ number_format($overview['averageOrderValue']) }} ₫</div>
+                    <div class="kpi-label">Giá Trị Đơn TB</div>
+                    <div class="kpi-value">{{ number_format($overview['averageOrderValue']) }} VND</div>
                 </div>
             </td>
         </tr>
     </table>
 
-    <h3>Top Sản Phẩm Bán Chạy</h3>
-    <table class="data-table">
+    @if(isset($charts['revenue']) && $charts['revenue'])
+    <div class="section-header">Xu hướng Doanh thu</div>
+    <div style="text-align: center; margin-bottom: 20px;">
+        <img src="{{ $charts['revenue'] }}" style="width: 100%; max-height: 250px; border-radius: 8px;">
+    </div>
+    @endif
+
+    <table style="width: 100%; margin-top: 10px;">
+        <tr>
+            <td style="width: 50%; vertical-align: top; padding-right: 15px; border: none;">
+                <div class="section-header">Sản Phẩm Bán Chạy</div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Sản Phẩm</th>
+                            <th class="text-right">Đã Bán</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach($topProducts as $product)
+                        <tr>
+                            <td class="text-bold">{{ $product->product_name }}</td>
+                            <td class="text-right text-indigo text-bold">{{ $product->total_sold }}</td>
+                        </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </td>
+            <td style="width: 50%; vertical-align: top; padding-left: 15px; border: none;">
+                <div class="section-header">Khách Hàng Thân Thiết</div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Khách Hàng</th>
+                            <th class="text-right">Chi Tiêu</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach($topCustomers as $customer)
+                        <tr>
+                            <td class="text-bold">{{ $customer->full_name }}</td>
+                            <td class="text-right text-indigo text-bold">{{ number_format($customer->total_spent) }} VND</td>
+                        </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </td>
+        </tr>
+    </table>
+
+    @if((isset($charts['status']) && $charts['status']) || (isset($charts['payment']) && $charts['payment']))
+    <table style="width: 100%; margin-top: 20px;">
+        <tr>
+            <td style="width: 50%; text-align: center; border: none;">
+                <div class="section-header">Trạng Thái Đơn Hàng</div>
+                <img src="{{ $charts['status'] }}" style="width: 180px;">
+            </td>
+            <td style="width: 50%; text-align: center; border: none;">
+                <div class="section-header">Phương Thức Thanh Toán</div>
+                <img src="{{ $charts['payment'] }}" style="width: 180px;">
+            </td>
+        </tr>
+    </table>
+    @endif
+
+    <div class="section-header">Phân Bổ Phương Thức Thanh Toán</div>
+    <table style="table-layout: fixed;">
         <thead>
             <tr>
-                <th style="width: 50%;">Tên Sản Phẩm</th>
-                <th class="text-right">Số Lượng</th>
-                <th class="text-right">Doanh Thu</th>
+                <th style="width: 40%;">Phương Thức</th>
+                <th style="width: 25%;" class="text-center">Số Lượng Đơn</th>
+                <th style="width: 35%;" class="text-right">Tổng Doanh Thu</th>
             </tr>
         </thead>
         <tbody>
-            @foreach($topProducts as $product)
+            @foreach($paymentMethods as $method)
             <tr>
-                <td>{{ $product['name'] }}</td>
-                <td class="text-right">{{ $product['total_sold'] }}</td>
-                <td class="text-right">{{ number_format($product['total_revenue']) }} ₫</td>
+                <td class="text-bold">{{ strtoupper($method->payment_method) }}</td>
+                <td class="text-center">{{ $method->count }}</td>
+                <td class="text-right text-bold">{{ number_format($method->total) }} VND</td>
             </tr>
             @endforeach
-            @if(count($topProducts) == 0)
-                <tr><td colspan="3" class="text-center">Chưa có dữ liệu</td></tr>
-            @endif
         </tbody>
     </table>
 
-    <h3>Giao Dịch Gần Đây</h3>
-    <table class="data-table">
+    <div class="section-header">Giao Dịch Gần Đây</div>
+    <table style="table-layout: fixed;">
         <thead>
             <tr>
-                <th>Mã Đơn</th>
-                <th>Khách Hàng</th>
-                <th>Ngày Tạo</th>
-                <th>Trạng Thái</th>
-                <th class="text-right">Tổng Tiền</th>
+                <th style="width: 15%;">Mã Đơn</th>
+                <th style="width: 30%;">Khách Hàng</th>
+                <th style="width: 15%;">Ngày Tạo</th>
+                <th style="width: 20%;" class="text-center">Trạng Thái</th>
+                <th style="width: 20%;" class="text-right">Tổng Tiền</th>
             </tr>
         </thead>
         <tbody>
             @foreach($recentOrders as $order)
             @php
-                // Dịch trạng thái và gán màu
                 $statusMap = [
-                    'pending' => ['text' => 'Chờ xử lý', 'class' => 'text-warning'],
-                    'processing' => ['text' => 'Đang xử lý', 'class' => 'text-info'],
-                    'shipping' => ['text' => 'Đang giao', 'class' => 'text-info'],
-                    'completed' => ['text' => 'Hoàn thành', 'class' => 'text-success'],
-                    'cancelled' => ['text' => 'Đã hủy', 'class' => 'text-danger'],
-                    'returned' => ['text' => 'Hoàn trả', 'class' => 'text-danger'],
+                    'pending' => ['text' => 'Chờ xử lý', 'class' => 'badge-warning'],
+                    'confirmed' => ['text' => 'Đã xác nhận', 'class' => 'badge-info'],
+                    'processing' => ['text' => 'Đang xử lý', 'class' => 'badge-info'],
+                    'shipping' => ['text' => 'Đang giao', 'class' => 'badge-info'],
+                    'completed' => ['text' => 'Hoàn thành', 'class' => 'badge-success'],
+                    'cancelled' => ['text' => 'Đã hủy', 'class' => 'badge-danger'],
                 ];
                 $st = $statusMap[$order->order_status] ?? ['text' => $order->order_status, 'class' => ''];
             @endphp
             <tr>
-                <td><strong>{{ $order->order_code ?? '#'.$order->id }}</strong></td>
-                <td>{{ $order->user->full_name ?? 'Khách lẻ' }}</td>
+                <td class="text-bold">#{{ $order->order_code ?? $order->id }}</td>
+                <td>{{ $order->user->full_name ?? ($order->email ?? 'Khách vãng lai') }}</td>
                 <td>{{ $order->created_at->format('d/m/Y') }}</td>
-                <td>
-                    <span class="status-text {{ $st['class'] }}">
-                        {{ $st['text'] }}
-                    </span>
+                <td class="text-center">
+                    <span class="badge {{ $st['class'] }}">{{ $st['text'] }}</span>
                 </td>
-                <td class="text-right">{{ number_format($order->total_amount) }} ₫</td>
+                <td class="text-right text-bold">{{ number_format($order->total_amount) }} VND</td>
             </tr>
             @endforeach
         </tbody>
     </table>
 
     <div class="footer">
-        Florentic Store - Website: www.florentic.com - Hotline: 1900 xxxx <br>
-        Báo cáo này được tạo tự động bởi hệ thống quản trị.
+        22.Décembre Store - Báo cáo được trích xuất vào {{ now()->format('H:i d/m/Y') }} <br>
+        Tài liệu lưu trữ nội bộ
     </div>
 </body>
 </html>

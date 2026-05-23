@@ -77,7 +77,7 @@
             <div v-for="product in products" :key="product.id" class="product-card">
               <div class="product-image">
                 <img :src="getProductImage(product)" :alt="product.name"
-                  @error="(e) => e.target.src = 'https://via.placeholder.com/300x300?text=No+Image'" />
+                  @error="(e) => e.target.src = 'https://placehold.co/300x300?text=No+Image'" />
                 <span v-if="product.featured" class="badge">Nổi bật</span>
               </div>
               <div class="product-info">
@@ -340,10 +340,15 @@ const fetchProducts = async (page = 1) => {
     const colors = new Set();
     data.data.forEach(product => {
       product.variants?.forEach(variant => {
-        if (variant.color_name || variant.color_code) {
+        const cVal = extractAttribute(variant, ['Màu', 'Màu sắc', 'Color', 'color']);
+        if (cVal) {
+          const colorMap = {
+            'Đen': '#000000', 'Trắng': '#FFFFFF', 'Đỏ': '#FF0000', 'Xanh': '#0000FF',
+            'Vàng': '#FFFF00', 'Xám': '#808080', 'Hồng': '#FFC0CB', 'Cam': '#FFA500'
+          };
           colors.add(JSON.stringify({
-            name: variant.color_name,
-            code: variant.color_code
+            name: cVal,
+            code: colorMap[cVal] || '#EEEEEE'
           }));
         }
       });
@@ -405,6 +410,7 @@ const toggleFilter = (type, value) => {
   } else {
     filters[type].push(value);
   }
+  applyFilters();
 };
 
 // Format price
@@ -427,38 +433,46 @@ const getProductImage = (product) => {
     if (main.image_path) return `/${main.image_path}`
   }
 
-  return 'https://via.placeholder.com/300x300?text=No+Image'
+  return 'https://placehold.co/300x300?text=No+Image'
 }
+
+const extractAttribute = (v, keys) => {
+  if (!v || !v.variant_attributes) return null;
+  for (const key of keys) {
+    if (v.variant_attributes[key]) return v.variant_attributes[key];
+  }
+  return null;
+};
 
 // Lấy list size từ variants (unique)
 const getProductSizes = (product) => {
   if (!product.variants || !product.variants.length) return []
-
   const set = new Set()
   product.variants.forEach(v => {
-    if (v.size) set.add(v.size)
+    const val = extractAttribute(v, ['Size', 'size', 'Kích thước']);
+    if (val) set.add(val)
   })
-
-  return Array.from(set) // ['S','M','L', ...]
+  return Array.from(set)
 }
 
 // Lấy list màu (unique theo color_name / color_code)
 const getProductColors = (product) => {
   if (!product.variants || !product.variants.length) return []
-
   const map = new Map()
   product.variants.forEach(v => {
-    const key = v.color_name || v.color_code
-    if (!key) return
-    if (!map.has(key)) {
-      map.set(key, {
-        name: v.color_name,
-        code: v.color_code
+    const val = extractAttribute(v, ['Màu', 'Màu sắc', 'Color', 'color']);
+    if (val && !map.has(val)) {
+      const colorMap = {
+        'Đen': '#000000', 'Trắng': '#FFFFFF', 'Đỏ': '#FF0000', 'Xanh': '#0000FF',
+        'Vàng': '#FFFF00', 'Xám': '#808080', 'Hồng': '#FFC0CB', 'Cam': '#FFA500'
+      };
+      map.set(val, {
+        name: val,
+        code: colorMap[val] || '#EEEEEE'
       })
     }
   })
-
-  return Array.from(map.values())  // [{name, code}, ...]
+  return Array.from(map.values())
 }
 
 onMounted(() => {
@@ -500,26 +514,23 @@ const openQuickView = async (product) => {
 
     // Nếu backend chỉ trả về variants thì map ra sizes & colors cho popup
     if (detail && detail.variants && detail.variants.length) {
-      const sizeMap = new Map()
+      const sizeSet = new Set()
       const colorMap = new Map()
 
       detail.variants.forEach((v, index) => {
-        // gom size
-        if (v.size && !sizeMap.has(v.size)) {
-          sizeMap.set(v.size, {
-            id: 'size_' + (index + 1),
-            size: v.size,
-            quantity: v.quantity ?? 0,
-          })
-        }
+        const sVal = extractAttribute(v, ['Size', 'size', 'Kích thước']);
+        if (sVal) sizeSet.add(sVal);
 
-        // gom màu
-        const colorKey = v.color_name || v.color_code
-        if (colorKey && !colorMap.has(colorKey)) {
-          colorMap.set(colorKey, {
+        const cVal = extractAttribute(v, ['Màu', 'Màu sắc', 'Color', 'color']);
+        if (cVal && !colorMap.has(cVal)) {
+          const colorMapCodes = {
+            'Đen': '#000000', 'Trắng': '#FFFFFF', 'Đỏ': '#FF0000', 'Xanh': '#0000FF',
+            'Vàng': '#FFFF00', 'Xám': '#808080', 'Hồng': '#FFC0CB', 'Cam': '#FFA500'
+          };
+          colorMap.set(cVal, {
             id: 'color_' + (index + 1),
-            color_name: v.color_name || '',
-            color_code: v.color_code || '#000000',
+            color_name: cVal,
+            color_code: colorMapCodes[cVal] || '#EEEEEE',
           })
         }
       })
@@ -527,7 +538,7 @@ const openQuickView = async (product) => {
       // gắn thêm field sizes / colors để Vue dùng
       detail = {
         ...detail,
-        sizes: Array.from(sizeMap.values()),
+        sizes: Array.from(sizeSet).map((s, i) => ({ id: 'size_' + i, size: s })),
         colors: Array.from(colorMap.values()),
       }
     }
@@ -556,7 +567,7 @@ const closeQuickView = () => {
 }
 
 const onQuickImageError = (e) => {
-  e.target.src = 'https://via.placeholder.com/600x600?text=No+Image'
+  e.target.src = 'https://placehold.co/600x600?text=No+Image'
 }
 
 const increaseQty = () => {
@@ -627,8 +638,10 @@ const addQuickToCart = async () => {
     const payload = {
       product_id: p.id,
       quantity: quantity.value,
-      size: selectedSize.value || null,
-      color: selectedColor.value || null,
+      attributes: {
+        'Size': selectedSize.value,
+        'Màu': selectedColor.value
+      },
       session_id: sessionId
     }
 
@@ -679,28 +692,22 @@ const showToast = (msg) => {
     isToastVisible.value = false
   }, 2200) // 2.2s tự ẩn
 }
-// Lấy tồn kho theo size + màu (nếu có variants)
 const getAvailableStock = (p, size, color) => {
   if (!p) return null
-
-  // Có bảng variants: product.variants
   if (p.variants && p.variants.length) {
     const variant = p.variants.find(v => {
-      const sameSize  = !size  || v.size === size
-      const sameColor = !color || v.color_name === color || v.color_code === color
-      return sameSize && sameColor
+      const vSize = extractAttribute(v, ['Size', 'size', 'Kích thước']);
+      const vColor = extractAttribute(v, ['Màu', 'Màu sắc', 'Color', 'color']);
+      const sameSize = !size || vSize === size;
+      const sameColor = !color || vColor === color;
+      return sameSize && sameColor;
     })
-
-    if (!variant) return 0 // tổ hợp size/màu không tồn tại
+    if (!variant) return 0
     return Number(variant.quantity ?? 0)
   }
-
-  // Nếu bạn có field tổng như stock_quantity:
   if (typeof p.stock_quantity !== 'undefined') {
     return Number(p.stock_quantity)
   }
-
-  // Không biết tồn kho -> bỏ qua kiểm tra
   return null
 }
 /* Dọn dẹp timer khi rời trang */
@@ -737,22 +744,24 @@ onBeforeUnmount(() => {
 /* --- SIDEBAR --- */
 .sidebar {
   width: 280px;
-  background: #000000;
+  background: #FFFFFF;
   transition: all 0.4s ease;
-  box-shadow: 2px 0 10px rgba(0, 0, 0, 0.5);
+  box-shadow: none;
+  border-right: 1px solid #E6E0D8;
 }
 
 .sidebar.hidden {
   width: 0;
+  border: none;
 }
 
 /* Filter panel scrollable */
 .filter-panel {
-  background: #000000;
+  background: #FFFFFF;
   padding: 40px 30px;
   position: sticky;
   top: 80px;
-  color: #ffffff;
+  color: #333333;
   height: calc(100vh - 80px);
   overflow-y: auto;
   scroll-behavior: smooth;
@@ -773,25 +782,25 @@ onBeforeUnmount(() => {
 }
 
 .filter-panel::-webkit-scrollbar-thumb {
-  background: #555;
+  background: #D9CFC4;
   border-radius: 3px;
 }
 
 .filter-panel::-webkit-scrollbar-track {
-  background: #000;
+  background: #F5F5F5;
 }
 
 /* Header Filter */
 .filter-header h2 {
   font-size: 14px;
-  font-weight: 400;
+  font-weight: 600;
   margin: 0 0 20px 0;
   display: flex;
   align-items: center;
   gap: 10px;
   letter-spacing: 2px;
   text-transform: uppercase;
-  color: #ffffff;
+  color: #333333;
 }
 
 .icon {
@@ -803,25 +812,23 @@ onBeforeUnmount(() => {
 .apply-btn {
   width: 100%;
   padding: 14px;
-  background: #ffffff;
-  color: #000000;
-  border: none;
+  background: #A08B7A;
+  color: #ffffff;
+  border: 1px solid #A08B7A;
   cursor: pointer;
   font-size: 12px;
-  font-weight: 500;
+  font-weight: 600;
   letter-spacing: 1.5px;
   text-transform: uppercase;
   margin-bottom: 30px;
   transition: all 0.3s ease;
-  border-radius: 4px;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+  border-radius: 0;
 }
 
 .apply-btn:hover {
-  background: #000000;
+  background: #333333;
   color: #ffffff;
-  border: 1px solid #ffffff;
-  box-shadow: 0 2px 8px rgba(255, 255, 255, 0.2);
+  border-color: #333333;
 }
 
 .close-sidebar-btn {
@@ -830,7 +837,7 @@ onBeforeUnmount(() => {
   background: none;
   border: none;
   cursor: pointer;
-  color: #fff;
+  color: #333333;
 }
 
 .sidebar-overlay {
@@ -856,7 +863,7 @@ onBeforeUnmount(() => {
 .filter-section {
   margin-bottom: 40px;
   padding-bottom: 40px;
-  border-bottom: 1px solid #333333;
+  border-bottom: 1px solid #E6E0D8;
 }
 
 .filter-section:last-of-type {
@@ -865,11 +872,11 @@ onBeforeUnmount(() => {
 
 .filter-section h3 {
   font-size: 12px;
-  font-weight: 400;
+  font-weight: 600;
   margin: 0 0 20px 0;
   letter-spacing: 1.5px;
   text-transform: uppercase;
-  color: #bbbbbb;
+  color: #555555;
 }
 
 /* Price Inputs */
@@ -883,21 +890,21 @@ onBeforeUnmount(() => {
   width: 100%;
   padding: 12px 10px;
   border: none;
-  border-bottom: 1px solid #333333;
+  border-bottom: 1px solid #E6E0D8;
   background: transparent;
   font-size: 14px;
-  color: #ffffff;
+  color: #333333;
   transition: border-color 0.3s, background 0.3s;
 }
 
 .input::placeholder {
-  color: #777777;
+  color: #999999;
 }
 
 .input:focus {
   outline: none;
-  border-bottom-color: #ffffff;
-  background: rgba(255, 255, 255, 0.05);
+  border-bottom-color: #333333;
+  background: #FAF9F6;
 }
 
 /* Size Buttons */
@@ -909,26 +916,26 @@ onBeforeUnmount(() => {
 
 .size-btn {
   padding: 8px 16px;
-  border: 1px solid #333333;
+  border: 1px solid #E6E0D8;
   background: transparent;
-  color: #ffffff;
+  color: #333333;
   cursor: pointer;
   transition: all 0.3s ease;
   font-size: 12px;
   letter-spacing: 1px;
-  border-radius: 4px;
+  border-radius: 0;
 }
 
 .size-btn:hover {
-  border-color: #ffffff;
-  background: #ffffff;
-  color: #000000;
+  border-color: #333333;
+  background: #FAF9F6;
+  color: #333333;
 }
 
 .size-btn.active {
-  background: #ffffff;
-  color: #000000;
-  border-color: #ffffff;
+  background: #333333;
+  color: #ffffff;
+  border-color: #333333;
 }
 
 /* Color Filter */
@@ -954,21 +961,21 @@ onBeforeUnmount(() => {
   width: 16px;
   height: 16px;
   cursor: pointer;
-  accent-color: #ffffff;
+  accent-color: #333333;
 }
 
 .color-box {
   width: 20px;
   height: 20px;
-  border: 1px solid #333333;
-  border-radius: 3px;
+  border: 1px solid #E6E0D8;
+  border-radius: 50%;
   transition: transform 0.2s ease;
 }
 
 .color-item span {
   font-size: 12px;
   letter-spacing: 0.5px;
-  color: #ffffff;
+  color: #555555;
 }
 
 /* --- MAIN CONTENT --- */
@@ -995,7 +1002,7 @@ onBeforeUnmount(() => {
   margin: 0;
   letter-spacing: 4px;
   text-transform: uppercase;
-  color: #000000;
+  color: #333333;
 }
 
 .toggle-filter-btn {
@@ -1003,7 +1010,7 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 8px;
   padding: 10px 20px;
-  background: #000000;
+  background: #A08B7A;
   color: #ffffff;
   border: none;
   cursor: pointer;
@@ -1082,7 +1089,7 @@ onBeforeUnmount(() => {
   position: absolute;
   top: 10px;
   right: 10px;
-  background: #000000;
+  background: #A08B7A;
   color: #ffffff;
   font-size: 10px;
   padding: 6px 10px;
@@ -1102,7 +1109,7 @@ onBeforeUnmount(() => {
 .product-name {
   font-size: 16px;
   font-weight: 500;
-  color: #000;
+  color: #333333;
   margin: 0 0 10px 0;
   line-height: 1.5;
   min-height: 48px;                  /* giữ chiều cao ổn định cho 2 dòng */
@@ -1176,27 +1183,27 @@ onBeforeUnmount(() => {
   font-size: 11px;
   letter-spacing: 1.8px;
   text-transform: uppercase;
-  border: 1px solid #000;
+  border: 1px solid #E6E0D8;
   background: #ffffff;
-  color: #000000;
+  color: #333333;
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
 /* Nút Xem nhanh: nền trắng, hover đen */
 .product-actions .quick-view-btn:hover {
-  background: #000000;
+  background: #A08B7A;
   color: #ffffff;
 }
 
 /* Nút Xem chi tiết: mặc định nền đen */
 .product-actions .detail-btn {
-  background: #000000;
+  background: #A08B7A;
   color: #ffffff;
 }
 .product-actions .detail-btn:hover {
   background: #ffffff;
-  color: #000000;
+  color: #333333;
 }
 
 /* Mobile: cho 2 nút xếp dọc để dễ bấm */
@@ -1217,7 +1224,7 @@ onBeforeUnmount(() => {
   width: 40px;
   height: 40px;
   border: 2px solid #e0e0e0;
-  border-top: 2px solid #000000;
+  border-top: 2px solid #E6E0D8;
   animation: spin 1s linear infinite;
 }
 
@@ -1272,21 +1279,21 @@ onBeforeUnmount(() => {
   justify-content: center;
   font-weight: 400;
   font-size: 14px;
-  color: #000000;
+  color: #333333;
   transition: all 0.3s ease;
 }
 
 /* Hover effect cho nút phân trang */
 .page-btn:hover:not(:disabled) {
-  border-color: #000000;
+  border-color: #333333;
   background-color: #f9f9f9;
 }
 
 /* Trang đang active */
 .page-btn.active {
-  background-color: #000000;
+  background-color: #A08B7A;
   color: #ffffff;
-  border-color: #000000;
+  border-color: #333333;
 }
 
 /* Nút bị disable (khi ở trang đầu/cuối) */
@@ -1355,7 +1362,7 @@ onBeforeUnmount(() => {
     left: 0;
     height: 100vh;
     width: 280px;
-    background: #000;
+    background: #A08B7A;
     /* Màu nền sidebar */
     z-index: 2000;
     box-shadow: 4px 0 15px rgba(0, 0, 0, 0.3);
@@ -1550,7 +1557,7 @@ onBeforeUnmount(() => {
   border-radius: 999px;
   border: none;
   background: #f4f4f4;
-  color: #000;
+  color: #333333;
   font-size: 20px;
   line-height: 1;
   cursor: pointer;
@@ -1559,7 +1566,7 @@ onBeforeUnmount(() => {
   justify-content: center;
 }
 .modal-close:hover {
-  background: #000;
+  background: #A08B7A;
   color: #fff;
 }
 
@@ -1606,7 +1613,7 @@ onBeforeUnmount(() => {
   transform: translateY(-2px);
 }
 .thumb.active {
-  border-color: #000;
+  border-color: #333333;
 }
 
 /* cột thông tin */
@@ -1620,7 +1627,7 @@ onBeforeUnmount(() => {
   font-size: 20px;
   font-weight: 500;
   margin: 0;
-  color: #000;
+  color: #333333;
 }
 
 /* giá */
@@ -1692,10 +1699,10 @@ onBeforeUnmount(() => {
 }
 .color-option:hover {
   transform: translateY(-1px);
-  border-color: #000;
+  border-color: #333333;
 }
 .color-option.active {
-  border-color: #000;
+  border-color: #333333;
   box-shadow: 0 0 0 1px #000;
 }
 
@@ -1713,18 +1720,18 @@ onBeforeUnmount(() => {
   border-radius: 4px;
   border: 1px solid #ddd;
   background: #fff;
-  color: #000;
+  color: #333333;
   font-size: 14px;
   cursor: pointer;
   transition: all 0.2s ease;
 }
 .modal-size-btn:hover {
-  border-color: #000;
+  border-color: #333333;
 }
 .modal-size-btn.active {
-  background: #000;
+  background: #A08B7A;
   color: #fff;
-  border-color: #000;
+  border-color: #333333;
 }
 
 /* link hướng dẫn size */
@@ -1769,7 +1776,7 @@ onBeforeUnmount(() => {
   margin-top: 18px;
   width: 100%;
   padding: 13px 20px;
-  background: #000;
+  background: #A08B7A;
   color: #fff;
   border: none;
   text-transform: uppercase;

@@ -70,7 +70,8 @@ class OrderController extends Controller
     public function updateStatus(Request $request, $order_code)
     {
         $request->validate([
-            'order_status' => 'required|in:pending,confirmed,shipping,completed,cancelled'
+            'order_status' => 'nullable|in:pending,confirmed,shipping,completed,cancelled',
+            'payment_status' => 'nullable|in:pending,paid,failed'
         ]);
 
         // Eager load orderItems để duyệt qua các sản phẩm trong đơn
@@ -79,22 +80,39 @@ class OrderController extends Controller
             ->firstOrFail();
 
         $oldStatus = $order->order_status;
-        $newStatus = $request->order_status;
+        $newStatus = $request->order_status ?? $oldStatus;
+        $newPaymentStatus = $request->payment_status ?? $order->payment_status;
 
-        // Nếu trạng thái không đổi thì return luôn
-        if ($oldStatus === $newStatus) {
-            return response()->json(['message' => 'Trạng thái không thay đổi']);
+        // Nếu không có gì thay đổi thì return luôn
+        if ($oldStatus === $newStatus && $order->payment_status === $newPaymentStatus) {
+            return response()->json(['message' => 'Dữ liệu không thay đổi']);
         }
 
         // Cập nhật trạng thái mới
         $order->order_status = $newStatus;
+        $order->payment_status = $newPaymentStatus;
 
-        // CASE A: Hoàn thành -> Đã thanh toán
-        if ($newStatus == 'completed') {
-            $order->payment_status = 'paid';
-            // ---> THÊM MỚI: Gửi mail khi hoàn thành <---
+        // --- RÀNG BUỘC LOGIC THỰC TẾ ---
+        
+        // 1. Nếu thanh toán Online (VNPay/Momo) mà FAILED -> Không cho phép giao hàng (Shipping)
+        if ($order->payment_method !== 'cod' && $order->payment_status === 'failed' && $newStatus === 'shipping') {
+            return response()->json(['message' => 'Không thể giao hàng khi thanh toán Online đang ở trạng thái Thất bại.'], 422);
+        }
+
+        // 2. Nếu thanh toán đang FAILED -> Không cho phép Hoàn thành (Completed)
+        if ($order->payment_status === 'failed' && $newStatus === 'completed') {
+            return response()->json(['message' => 'Không thể hoàn thành đơn hàng khi trạng thái thanh toán là Thất bại.'], 422);
+        }
+
+        // 3. CASE A: Đơn hàng vừa chuyển sang trạng thái Hoàn thành
+        if ($newStatus === 'completed' && $oldStatus !== 'completed') {
+            // Ép trạng thái thanh toán thành Đã thanh toán nếu chưa
+            if ($order->payment_status !== 'paid') {
+                $order->payment_status = 'paid';
+            }
+            
+            // Gửi mail mời đánh giá
             if ($order->email) {
-                // Gửi trực tiếp dùng Mail::send cho nhanh, khỏi tạo class Mail
                 Mail::send('review_request', ['order' => $order], function ($message) use ($order) {
                     $message->to($order->email);
                     $message->subject('Mời đánh giá đơn hàng #' . $order->order_code);
@@ -121,8 +139,9 @@ class OrderController extends Controller
         $order->save();
 
         return response()->json([
-            'message' => 'Cập nhật trạng thái thành công',
-            'order_status' => $order->order_status
+            'message' => 'Cập nhật thành công',
+            'order_status' => $order->order_status,
+            'payment_status' => $order->payment_status
         ]);
     }
 
@@ -245,5 +264,14 @@ class OrderController extends Controller
     {
         $items = CartSession::with('product')->where('session_id', $sessionId)->get();
         return response()->json($items);
+    }
+    public function getUniquePaymentMethods()
+    {
+        $methods = Order::select('payment_method')
+            ->distinct()
+            ->whereNotNull('payment_method')
+            ->pluck('payment_method');
+            
+        return response()->json($methods);
     }
 }

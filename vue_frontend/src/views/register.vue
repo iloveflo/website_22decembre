@@ -171,8 +171,8 @@ async function submitRegister() {
   background: #fff;
   border-radius: 12px;
   box-shadow: 0 6px 20px rgba(0,0,0,0.08);
-  font-family: "Inter", sans-serif;
-  color: #111;
+  font-family: var(--font-body);
+  color: var(--text-color);
 }
 
 .register-page h2 {
@@ -213,12 +213,12 @@ async function submitRegister() {
 
 .form-group input:focus {
   outline: none;
-  border-color: #111;
+  border-color: #A08B7A;
   background: #fff;
 }
 
 .btn-register {
-  background: #111;
+  background: #A08B7A;
   color: #fff;
   font-weight: 600;
   font-size: 15px;
@@ -230,7 +230,7 @@ async function submitRegister() {
 }
 
 .btn-register:hover {
-  background: #333;
+  background: #8B7566;
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(0,0,0,0.15);
 }

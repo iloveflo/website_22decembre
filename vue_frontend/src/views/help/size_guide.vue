@@ -144,7 +144,7 @@
       <div class="note-box">
         <p class="note-text">
           * Số đo có thể chênh lệch ±2cm tùy theo chất liệu và kiểu dáng sản phẩm. 
-          Để được tư vấn size chính xác, vui lòng liên hệ với FLORENTIC qua hotline hoặc chat trực tuyến.
+          Để được tư vấn size chính xác, vui lòng liên hệ với 22.Décembre qua hotline hoặc chat trực tuyến.
         </p>
       </div>
     </div>
@@ -207,8 +207,8 @@ const currentMeasurements = computed(() => measurements[activeCategory.value]);
 
 .size-guide {
   background-color: #ffffff;
-  color: #000000;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+  color: #333333;
+  
   padding: 48px 0;
 }
 
@@ -221,7 +221,7 @@ const currentMeasurements = computed(() => measurements[activeCategory.value]);
 /* Page Header */
 .page-header {
   padding: 70px 0;
-  border-bottom: 2px solid #000000;
+  border-bottom: 2px solid #E6E0D8;
   margin-bottom: 48px;
 }
 
@@ -256,7 +256,7 @@ const currentMeasurements = computed(() => measurements[activeCategory.value]);
   grid-template-columns: repeat(2, 1fr);
   gap: 0;
   margin-bottom: 48px;
-  border: 2px solid #000000;
+  border: 2px solid #E6E0D8;
 }
 
 .category-btn {
@@ -264,7 +264,7 @@ const currentMeasurements = computed(() => measurements[activeCategory.value]);
   font-size: 18px;
   letter-spacing: 0.2em;
   background-color: #ffffff;
-  color: #000000;
+  color: #333333;
   border: none;
   cursor: pointer;
   transition: all 0.3s ease;
@@ -272,7 +272,7 @@ const currentMeasurements = computed(() => measurements[activeCategory.value]);
 }
 
 .category-btn-right {
-  border-left: 2px solid #000000;
+  border-left: 2px solid #A08B7A;
 }
 
 .category-btn:hover {
@@ -280,7 +280,7 @@ const currentMeasurements = computed(() => measurements[activeCategory.value]);
 }
 
 .category-btn.active {
-  background-color: #000000;
+  background-color: #A08B7A;
   color: #ffffff;
 }
 
@@ -290,7 +290,7 @@ const currentMeasurements = computed(() => measurements[activeCategory.value]);
   grid-template-columns: repeat(2, 1fr);
   gap: 0;
   margin-bottom: 64px;
-  border: 2px solid #000000;
+  border: 2px solid #E6E0D8;
 }
 
 .gender-btn {
@@ -298,7 +298,7 @@ const currentMeasurements = computed(() => measurements[activeCategory.value]);
   font-size: 16px;
   letter-spacing: 0.2em;
   background-color: #ffffff;
-  color: #000000;
+  color: #333333;
   border: none;
   cursor: pointer;
   transition: all 0.3s ease;
@@ -310,7 +310,7 @@ const currentMeasurements = computed(() => measurements[activeCategory.value]);
 }
 
 .gender-btn-right {
-  border-left: 2px solid #000000;
+  border-left: 2px solid #A08B7A;
 }
 
 .gender-btn:hover {
@@ -318,7 +318,7 @@ const currentMeasurements = computed(() => measurements[activeCategory.value]);
 }
 
 .gender-btn.active {
-  background-color: #000000;
+  background-color: #A08B7A;
   color: #ffffff;
 }
 
@@ -329,13 +329,13 @@ const currentMeasurements = computed(() => measurements[activeCategory.value]);
 
 /* Table */
 .table-wrapper {
-  border: 2px solid #000000;
+  border: 2px solid #E6E0D8;
   overflow: hidden;
   margin-bottom: 64px;
 }
 
 .table-header {
-  background-color: #000000;
+  background-color: #A08B7A;
   color: #ffffff;
   padding: 16px 24px;
 }
@@ -357,7 +357,7 @@ const currentMeasurements = computed(() => measurements[activeCategory.value]);
 }
 
 .size-table thead tr {
-  border-bottom: 2px solid #000000;
+  border-bottom: 2px solid #E6E0D8;
 }
 
 .th-size {
@@ -366,7 +366,7 @@ const currentMeasurements = computed(() => measurements[activeCategory.value]);
   font-size: 14px;
   letter-spacing: 0.2em;
   font-weight: 400;
-  border-right: 2px solid #000000;
+  border-right: 2px solid #E6E0D8;
   background-color: #f9fafb;
 }
 
@@ -380,11 +380,11 @@ const currentMeasurements = computed(() => measurements[activeCategory.value]);
 }
 
 .th-border-right {
-  border-right: 2px solid #000000;
+  border-right: 2px solid #E6E0D8;
 }
 
 .table-row {
-  border-bottom: 2px solid #000000;
+  border-bottom: 2px solid #E6E0D8;
   cursor: pointer;
   transition: all 0.2s ease;
 }
@@ -394,7 +394,7 @@ const currentMeasurements = computed(() => measurements[activeCategory.value]);
 }
 
 .table-row.selected {
-  background-color: #000000;
+  background-color: #A08B7A;
   color: #ffffff;
 }
 
@@ -403,7 +403,7 @@ const currentMeasurements = computed(() => measurements[activeCategory.value]);
   font-weight: 500;
   font-size: 18px;
   letter-spacing: 0.05em;
-  border-right: 2px solid #000000;
+  border-right: 2px solid #E6E0D8;
 }
 
 .td-value {
@@ -413,13 +413,13 @@ const currentMeasurements = computed(() => measurements[activeCategory.value]);
 }
 
 .td-border-right {
-  border-right: 2px solid #000000;
+  border-right: 2px solid #E6E0D8;
 }
 
 /* Measurement Guide */
 .guide-section {
   margin-top: 64px;
-  border: 2px solid #000000;
+  border: 2px solid #E6E0D8;
   padding: 32px;
 }
 
@@ -457,7 +457,7 @@ const currentMeasurements = computed(() => measurements[activeCategory.value]);
 .guide-dot {
   width: 8px;
   height: 8px;
-  background-color: #000000;
+  background-color: #A08B7A;
   margin-top: 8px;
   flex-shrink: 0;
 }
@@ -480,7 +480,7 @@ const currentMeasurements = computed(() => measurements[activeCategory.value]);
 .note-box {
   margin-top: 32px;
   padding: 24px;
-  border: 2px solid #000000;
+  border: 2px solid #E6E0D8;
   background-color: #f9fafb;
 }
 

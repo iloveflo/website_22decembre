@@ -161,7 +161,7 @@
                   <span class="error-msg">{{ errors.discount_value?.[0] }}</span>
                 </div>
 
-                <div class="form-group">
+                <div class="form-group" v-if="form.discount_type === 'percent'">
                     <label>Giảm tối đa (Nếu là %)</label>
                     <input type="number" v-model="form.max_discount">
                 </div>
@@ -215,13 +215,34 @@
           </form>
         </div>
       </div>
+    <!-- Modal Xác nhận xóa -->
+    <div v-if="showDeleteModal" class="modal-overlay">
+      <div class="modal-content small">
+        <div class="modal-header danger">
+          <h5>Xác Nhận Xóa</h5>
+          <button type="button" class="close-btn" @click="showDeleteModal = false">×</button>
+        </div>
+        <div class="modal-body centered-content">
+          <div class="warning-icon">
+            <i class="fas fa-exclamation-triangle"></i>
+          </div>
+          <p>Bạn có chắc chắn muốn xóa mã giảm giá này không?</p>
+          <small class="text-light">Hành động này không thể hoàn tác.</small>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn-action secondary" @click="showDeleteModal = false">Hủy</button>
+          <button type="button" class="btn-action delete-confirm" @click="confirmDelete" :disabled="isSubmitting">
+            {{ isSubmitting ? 'Đang xóa...' : 'Đồng ý xóa' }}
+          </button>
+        </div>
+      </div>
     </div>
-
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue';
+import { ref, reactive, onMounted, nextTick } from 'vue';
 import axios from 'axios';
 
 // --- CONFIG ---
@@ -234,6 +255,8 @@ const loading = ref(false);
 const showModal = ref(false);
 const isEditing = ref(false);
 const isSubmitting = ref(false);
+const showDeleteModal = ref(false);
+const couponToDeleteId = ref(null);
 const pagination = ref({
     current_page: 1,
     last_page: 1,
@@ -324,8 +347,9 @@ const openModal = () => {
 
 const editCoupon = (coupon) => {
     Object.assign(form, coupon);
-    if(form.start_date) form.start_date = form.start_date.slice(0, 16);
-    if(form.end_date) form.end_date = form.end_date.slice(0, 16);
+    if(form.start_date) form.start_date = form.start_date.slice(0, 16).replace(' ', 'T');
+    if(form.end_date) form.end_date = form.end_date.slice(0, 16).replace(' ', 'T');
+    
     isEditing.value = true;
     showModal.value = true;
     errors.value = {};
@@ -337,8 +361,10 @@ const closeModal = () => {
 
 // 3. Lưu
 const saveCoupon = async () => {
-    isSubmitting.value = true;
-    errors.value = {}; 
+    // Xóa giá trị giảm tối đa nếu không phải là giảm theo %
+    if (form.discount_type === 'fixed') {
+        form.max_discount = null;
+    }
 
     try {
         let response;
@@ -367,18 +393,28 @@ const saveCoupon = async () => {
 };
 
 // 4. Xóa
-const deleteCoupon = async (id) => {
-    if (!confirm('Bạn có chắc chắn muốn xóa mã giảm giá này?')) return;
+const deleteCoupon = (id) => {
+    couponToDeleteId.value = id;
+    showDeleteModal.value = true;
+};
 
+const confirmDelete = async () => {
+    if (!couponToDeleteId.value) return;
+    
+    isSubmitting.value = true;
     try {
-        await axios.post(`${API_URL}/${id}`, {
-    _method: 'DELETE'
-});
+        await axios.post(`${API_URL}/${couponToDeleteId.value}`, {
+            _method: 'DELETE'
+        });
         showAlert('Đã xóa mã giảm giá.', 'success');
         fetchCoupons(pagination.value.current_page);
+        showDeleteModal.value = false;
     } catch (error) {
         const msg = error.response?.data?.message || 'Không thể xóa.';
         showAlert(msg, 'error');
+    } finally {
+        isSubmitting.value = false;
+        couponToDeleteId.value = null;
     }
 };
 
@@ -397,13 +433,21 @@ const formatCurrency = (value) => {
 const formatDate = (dateString) => {
     if (!dateString) return '';
     const date = new Date(dateString);
-    return date.toLocaleString('vi-VN');
+    // mm/dd/yyyy HH:mm
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = date.getFullYear();
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    return `${month}/${day}/${year} ${hours}:${minutes}`;
 };
 
+let alertTimeout = null;
 const showAlert = (msg, type) => {
     alert.message = msg;
     alert.type = type;
-    setTimeout(() => { alert.message = ''; }, 3000);
+    if (alertTimeout) clearTimeout(alertTimeout);
+    alertTimeout = setTimeout(() => { alert.message = ''; }, 3000);
 };
 
 onMounted(() => {
@@ -416,15 +460,17 @@ onMounted(() => {
    1. VARIABLES & RESET
    ============================ */
 :root {
-  --primary: #000000;
+  --primary: #A08B7A;
+  --primary-hover: #333333;
   --bg-page: #f8f9fa;
   --bg-card: #ffffff;
   --border-color: #e0e0e0;
-  --border-strong: #000000;
+  --border-strong: #E6E0D8;
   --text-main: #212529;
   --text-light: #6c757d;
   --danger: #dc3545;
   --success: #198754;
+  --radius: 0px;
 }
 
 * {
@@ -548,7 +594,7 @@ button {
   margin-right: 5px;
 }
 .btn-small.edit { background: #fff; border: 1px solid #ffc107; color: #b48600; }
-.btn-small.edit:hover { background: #ffc107; color: #000; }
+.btn-small.edit:hover { background: #ffc107; color: #333333; }
 
 .btn-small.delete { background: #fff; border: 1px solid #dc3545; color: #dc3545; }
 .btn-small.delete:hover { background: #dc3545; color: #fff; }
@@ -681,10 +727,19 @@ button {
   background: #fafafa;
 }
 
+.modal-header.danger { background: #fff5f5; color: #c53030; border-bottom: 1px solid #feb2b2; }
 .modal-header h5 { font-size: 1.1rem; font-weight: 700; text-transform: uppercase; }
 .close-btn { background: none; border: none; font-size: 1.5rem; line-height: 1; padding: 0 10px; }
 
 .modal-body { padding: 0; overflow-y: auto; }
+.modal-body.centered-content { padding: 40px 30px; text-align: center; }
+
+.warning-icon { font-size: 3rem; color: #f56565; margin-bottom: 15px; }
+
+.modal-content.small { max-width: 450px; }
+
+.btn-action.delete-confirm { background: #c53030; color: #fff; border: 1px solid #c53030; }
+.btn-action.delete-confirm:hover { background: #9b2c2c; }
 
 .form-grid {
   display: grid;

@@ -24,12 +24,13 @@
           <tr v-for="item in cartItems" :key="item.id">
             <td class="product-col">
               <div class="product-info">
-                <img :src="item.image ? item.image : '/placeholder.jpg'" alt="Product Image" class="product-img" />
+                <img :src="item.image ? item.image : 'https://placehold.co/300x300?text=No+Image'" alt="Product Image" class="product-img" />
                 <div class="product-details">
                   <span class="product-name">{{ item.name }}</span>
-                  <div class="attributes">
-                    <span v-if="item.size">Size: {{ item.size }}</span>
-                    <span v-if="item.color"> | Màu: {{ item.color }}</span>
+                  <div class="attributes" v-if="item.variant_info">
+                    <span v-for="(val, key) in item.variant_info" :key="key" class="attr-item">
+                      {{ key }}: <strong>{{ val }}</strong>
+                    </span>
                   </div>
                 </div>
               </div>
@@ -77,9 +78,73 @@
           <span>Tổng số lượng:</span>
           <span>{{ summary.total_items }} sản phẩm</span>
         </div>
+        <div class="summary-row">
+          <span>Tạm tính:</span>
+          <span>{{ formatCurrency(clientTotal) }}</span>
+        </div>
+        <div class="coupon-section">
+          <!-- Tab switcher (chỉ hiện khi đã login) -->
+          <div v-if="isLoggedIn" class="coupon-tabs">
+            <button
+              class="coupon-tab"
+              :class="{ active: couponTab === 'input' }"
+              @click="couponTab = 'input'"
+            >Nhập mã</button>
+            <button
+              class="coupon-tab"
+              :class="{ active: couponTab === 'pick' }"
+              @click="switchToPick"
+            >Mã của tôi
+              <span v-if="myCoupons.length" class="coupon-badge">{{ myCoupons.length }}</span>
+            </button>
+          </div>
+
+          <!-- Panel: Nhập mã tay -->
+          <div v-if="couponTab === 'input'" class="coupon-input-group">
+            <input v-model="cartCouponCode" type="text" placeholder="Nhập mã khuyến mại">
+            <button @click="applyCoupon" :disabled="isApplyingCoupon">Áp dụng</button>
+          </div>
+
+          <!-- Panel: Chọn mã từ danh sách -->
+          <div v-if="couponTab === 'pick' && isLoggedIn" class="coupon-picker">
+            <div v-if="loadingCoupons" class="coupon-loading">Đang tải mã...</div>
+            <div v-else-if="myCoupons.length === 0" class="coupon-empty">Bạn chưa có mã khuyến mãi nào.</div>
+            <div v-else class="coupon-list">
+              <div
+                v-for="c in myCoupons"
+                :key="c.id"
+                class="coupon-card"
+                :class="{ selected: cartCouponCode === c.code, personal: personalCouponIds.includes(c.id), disabled: !isCouponApplicable(c) }"
+                @click="isCouponApplicable(c) && selectCoupon(c)"
+              >
+                <div class="coupon-card-header">
+                  <span class="coupon-code">{{ c.code }}</span>
+                  <span v-if="personalCouponIds.includes(c.id)" class="badge-personal">Của tôi</span>
+                </div>
+                <p class="coupon-desc">{{ c.description }}</p>
+                <div class="coupon-meta">
+                  <span v-if="c.discount_type === 'percent'">Giảm {{ c.discount_value }}%{{ c.max_discount > 0 ? ` (tối đa ${formatCurrency(c.max_discount)})` : '' }}</span>
+                  <span v-else>Giảm {{ formatCurrency(c.discount_value) }}</span>
+                  <span v-if="c.min_order_value > 0" class="coupon-min"> • Đơn từ {{ formatCurrency(c.min_order_value) }}</span>
+                </div>
+                <div class="coupon-footer">
+                  <span class="coupon-exp">HSD: {{ formatDate(c.end_date) }}</span>
+                  <span v-if="!isCouponApplicable(c)" class="coupon-warning">Chưa đủ điều kiện</span>
+                  <span v-else-if="cartCouponCode === c.code" class="coupon-selected-label">✓ Đã chọn</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <small v-if="couponMessage" :class="{'text-success': discountAmount > 0, 'text-danger': discountAmount === 0}">{{ couponMessage }}</small>
+        </div>
+        <div class="summary-row" v-if="discountAmount > 0">
+          <span>Khuyến mại:</span>
+          <span>-{{ formatCurrency(discountAmount) }}</span>
+        </div>
         <div class="summary-row total-row">
           <span>Tổng thanh toán:</span>
-          <span class="total-price">{{ formatCurrency(clientTotal) }}</span>
+          <span class="total-price">{{ formatCurrency(finalTotal) }}</span>
         </div>
         <div class="actions">
           <button class="btn-checkout" @click="handleCheckoutClick">Đặt hàng</button>
@@ -111,16 +176,14 @@
               </div>
 
               <div class="form-group">
-                <label>Mã khuyến mại (nếu có):</label>
-                <input v-model="form.coupon_code" type="text" placeholder="Mã giảm giá">
-              </div>
-
-              <div class="form-group">
                 <label>Phương thức thanh toán:</label>
                 <select v-model="form.payment_method">
-                  <option value="cod">Thanh toán khi nhận hàng (COD)</option>
+                  <option v-if="isLoggedIn" value="cod">Thanh toán khi nhận hàng (COD)</option>
                   <option value="vnpay">Thanh toán VNPAY</option>
                 </select>
+                <p v-if="!isLoggedIn" class="payment-hint">
+                  * Khách vãng lai bắt buộc thanh toán qua VNPay để xác nhận đơn hàng.
+                </p>
               </div>
 
               <div class="form-group">
@@ -129,8 +192,10 @@
               </div>
 
               <div class="form-actions">
-                <button type="button" @click="showCheckoutForm = false">Hủy</button>
-                <button type="submit" class="btn-confirm">Xác nhận thanh toán</button>
+                <button type="button" @click="showCheckoutForm = false" :disabled="isProcessing">Hủy</button>
+                <button type="submit" class="btn-confirm" :disabled="isProcessing">
+                  {{ isProcessing ? 'Đang xử lý...' : 'Xác nhận thanh toán' }}
+                </button>
               </div>
             </form>
           </div>
@@ -164,7 +229,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, computed, watch } from 'vue';
 import axios from 'axios';
 
 // --- STATE: Giỏ hàng ---
@@ -176,6 +241,7 @@ const isUpdating = ref(null);
 
 // --- STATE: Checkout ---
 const showCheckoutForm = ref(false);
+const isLoggedIn = ref(false);
 const isProcessing = ref(false);
 const form = ref({
   full_name: '',
@@ -198,6 +264,16 @@ const deleteModal = ref({
   show: false,
   itemId: null // Lưu ID của sản phẩm đang muốn xóa
 });
+
+// --- STATE: Coupon ---
+const cartCouponCode = ref('');
+const discountAmount = ref(0);
+const isApplyingCoupon = ref(false);
+const couponMessage = ref('');
+const couponTab = ref('input');       // 'input' | 'pick'
+const myCoupons = ref([]);
+const personalCouponIds = ref([]);
+const loadingCoupons = ref(false);
 
 // 1. Hàm được gọi khi bấm nút "Xóa" ở danh sách (Thay cho removeItem cũ)
 const openDeleteModal = (id) => {
@@ -279,11 +355,95 @@ const fetchCart = async () => {
   }
 };
 
+// --- COUPON HELPERS ---
+
+const formatDate = (dateStr) => {
+  if (!dateStr) return '';
+  return new Date(dateStr).toLocaleDateString('vi-VN');
+};
+
+const isCouponApplicable = (coupon) => {
+  return !coupon.min_order_value || clientTotal.value >= coupon.min_order_value;
+};
+
+const fetchMyCoupons = async () => {
+  if (!isLoggedIn.value) return;
+  loadingCoupons.value = true;
+  try {
+    const res = await axios.get('/cart/my-coupons', { headers: getHeaders() });
+    if (res.data.status === 'success') {
+      myCoupons.value = res.data.data;
+      personalCouponIds.value = res.data.personal_ids || [];
+    }
+  } catch (e) {
+    console.error('Lỗi tải mã coupon:', e);
+  } finally {
+    loadingCoupons.value = false;
+  }
+};
+
+const switchToPick = async () => {
+  couponTab.value = 'pick';
+  if (myCoupons.value.length === 0) {
+    await fetchMyCoupons();
+  }
+};
+
+const selectCoupon = (coupon) => {
+  cartCouponCode.value = coupon.code;
+  applyCoupon();
+};
+
+const applyCoupon = async () =>{
+  if (!cartCouponCode.value || !cartCouponCode.value.trim()) {
+    couponMessage.value = 'Vui lòng nhập mã khuyến mại';
+    discountAmount.value = 0;
+    return;
+  }
+
+  isApplyingCoupon.value = true;
+  couponMessage.value = '';
+
+  try {
+    const payload = {
+      coupon_code: cartCouponCode.value,
+      subtotal: clientTotal.value
+    };
+    
+    const response = await axios.post('/cart/check-coupon', payload, { headers: getHeaders() });
+    
+    if (response.data.status === 'success') {
+      discountAmount.value = response.data.discount_amount;
+      couponMessage.value = response.data.message;
+      showNotification('Áp dụng mã giảm giá thành công!');
+    }
+  } catch (error) {
+    discountAmount.value = 0;
+    if (error.response && error.response.data && error.response.data.message) {
+      couponMessage.value = error.response.data.message;
+    } else {
+      couponMessage.value = 'Mã giảm giá không hợp lệ hoặc đã hết hạn';
+    }
+  } finally {
+    isApplyingCoupon.value = false;
+  }
+};
+
 // Giúp số nhảy ngay lập tức khi bấm tăng giảm mà không cần chờ Server
 const clientTotal = computed(() => {
   return cartItems.value.reduce((total, item) => {
     return total + (item.unit_price * item.quantity);
   }, 0);
+});
+
+const finalTotal = computed(() => {
+  return Math.max(0, clientTotal.value - discountAmount.value);
+});
+
+watch(clientTotal, () => {
+  if (discountAmount.value > 0 || cartCouponCode.value) {
+    applyCoupon();
+  }
 });
 
 // 2. Cập nhật số lượng
@@ -388,7 +548,7 @@ const confirmDelete = async () => {
 const handleCheckoutClick = async () => {
   form.value = {
     full_name: '', email: '', phone: '', address: '',
-    coupon_code: '', payment_method: 'cod'
+    payment_method: 'cod'
   };
 
   try {
@@ -396,10 +556,15 @@ const handleCheckoutClick = async () => {
     const data = response.data;
 
     if (data.is_logged_in && data.customer_info) {
+      isLoggedIn.value = true;
       form.value.full_name = data.customer_info.full_name || '';
       form.value.email = data.customer_info.email || '';
       form.value.phone = data.customer_info.phone || '';
       form.value.address = data.customer_info.address || '';
+      form.value.payment_method = 'cod'; // Mặc định COD cho User
+    } else {
+      isLoggedIn.value = false;
+      form.value.payment_method = 'vnpay'; // Bắt buộc VNPay cho Khách
     }
     showCheckoutForm.value = true;
   } catch (error) {
@@ -421,17 +586,17 @@ const submitOrder = async () => {
     const payload = {
       ...form.value, // Gồm: full_name, email, phone, address, payment_method...
       session_id: getSessionId(),
+      coupon_code: cartCouponCode.value,
       
       // Gửi thêm tổng tiền (Dù backend sẽ tính lại để bảo mật, nhưng vẫn cần gửi để đối chiếu)
-      total_amount: clientTotal.value, 
+      total_amount: finalTotal.value, 
 
       // Gửi danh sách sản phẩm (chỉ lấy những trường cần thiết để gọn nhẹ)
       items: cartItems.value.map(item => ({
-        id: item.product_id,       // Product ID
+        id: item.product_id,
         quantity: item.quantity,
-        size: item.size,
-        color: item.color,
-        price: item.unit_price // Giá tại thời điểm mua
+        attributes: item.variant_info, // Dùng variant_info cho hệ thống mới
+        price: item.unit_price
       }))
     };
 
@@ -451,11 +616,12 @@ const submitOrder = async () => {
       showNotification('Đặt hàng thành công!');
       showCheckoutForm.value = false;
       
-      // Reset giỏ hàng
-      cartItems.value = [];
-      summary.value = { total_items: 0, total_price: 0 };
-      
-      window.dispatchEvent(new Event('cart-updated'));
+      // Reset giỏ hàng (CHỈ dành cho COD, VNPay sẽ đợi callback)
+      if (form.value.payment_method === 'cod') {
+        cartItems.value = [];
+        summary.value = { total_items: 0, total_price: 0 };
+        window.dispatchEvent(new Event('cart-updated'));
+      }
     }
 
   } catch (error) {
@@ -471,7 +637,17 @@ const submitOrder = async () => {
 };
 
 // --- Lifecycle ---
-onMounted(() => {
+onMounted(async () => {
+  // Phát hiện trạng thái đăng nhập ngay khi tải trang
+  const token = localStorage.getItem('token');
+  if (token) {
+    try {
+      const res = await axios.get('/checkout/info', { headers: { Authorization: `Bearer ${token}` } });
+      isLoggedIn.value = !!(res.data && res.data.is_logged_in);
+    } catch {
+      isLoggedIn.value = false;
+    }
+  }
   fetchCart();
 });
 </script>
@@ -495,7 +671,7 @@ onMounted(() => {
 h2 {
   font-size: 1.8rem;
   font-weight: 700;
-  color: #000;
+  color: #333333;
   margin-bottom: 30px;
   padding-bottom: 15px;
   border-bottom: 1px solid #e5e5e5;
@@ -514,7 +690,7 @@ h2 {
 .continue-shopping {
   display: inline-block;
   margin-top: 15px;
-  color: #000;
+  color: #333333;
   text-decoration: underline;
   font-weight: 600;
 }
@@ -569,18 +745,29 @@ h2 {
 .product-name {
   font-size: 1rem;
   font-weight: 600;
-  color: #000;
+  color: #333333;
   margin-bottom: 5px;
   text-decoration: none;
 }
 
 .attributes {
-  font-size: 0.85rem;
-  color: #777;
+  margin-top: 6px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
 }
 
-.attributes span {
-  margin-right: 10px;
+.attr-item {
+  font-size: 13px;
+  color: #666;
+  background: #f8f8f8;
+  padding: 2px 8px;
+  border-radius: 4px;
+  border: 1px solid #eee;
+}
+
+.attr-item strong {
+  color: #333;
 }
 
 /* --- GIÁ & SỐ LƯỢNG --- */
@@ -609,7 +796,7 @@ h2 {
 .line-total {
   font-size: 1.1rem;
   font-weight: 700;
-  color: #000;
+  color: #333333;
 }
 
 /* --- NÚT XÓA --- */
@@ -653,13 +840,69 @@ h2 {
   color: #555;
 }
 
+.coupon-section {
+  margin: 15px 0;
+  padding: 15px 0;
+  border-top: 1px dashed #eee;
+  border-bottom: 1px dashed #eee;
+}
+
+.coupon-input-group {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 5px;
+}
+
+.coupon-input-group input {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  outline: none;
+}
+
+.coupon-input-group input:focus {
+  border-color: #A08B7A;
+}
+
+.coupon-input-group button {
+  padding: 8px 15px;
+  background-color: #333;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: background-color 0.2s;
+}
+
+.coupon-input-group button:hover:not(:disabled) {
+  background-color: #555;
+}
+
+.coupon-input-group button:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+.text-success {
+  color: #28a745;
+  font-size: 0.85rem;
+}
+
+.text-danger {
+  color: #dc3545;
+  font-size: 0.85rem;
+}
+
 .total-row {
   margin-top: 15px;
   padding-top: 15px;
   border-top: 1px solid #eee;
   font-weight: 700;
   font-size: 1.2rem;
-  color: #000;
+  color: #333333;
   align-items: center;
 }
 
@@ -673,7 +916,7 @@ h2 {
 .quantity-controls {
   display: flex;
   align-items: center;
-  border: 1px solid #000;
+  border: 1px solid #E6E0D8;
   width: fit-content;
   /* Ôm sát nội dung */
   height: 36px;
@@ -686,7 +929,7 @@ h2 {
   /* Vuông 36x36 */
   height: 100%;
   background-color: #fff;
-  color: #000;
+  color: #333333;
   border: none;
   font-size: 18px;
   font-weight: 300;
@@ -701,7 +944,7 @@ h2 {
 
 /* Hiệu ứng Hover: Đảo màu (Nền đen chữ trắng) */
 .btn-qty:hover:not(:disabled) {
-  background-color: #000;
+  background-color: #A08B7A;
   color: #fff;
 }
 
@@ -719,14 +962,14 @@ h2 {
   height: 100%;
   border: none;
   /* Kẻ vạch ngăn cách giữa 2 nút */
-  border-left: 1px solid #000;
-  border-right: 1px solid #000;
+  border-left: 1px solid #A08B7A;
+  border-right: 1px solid #E6E0D8;
 
   text-align: center;
   font-size: 14px;
   font-weight: 600;
   /* Số đậm hơn một chút để rõ ràng */
-  color: #000;
+  color: #333333;
   background: transparent;
   outline: none;
   /* Bỏ viền xanh mặc định khi click vào */
@@ -749,7 +992,7 @@ h2 {
 
 .btn-checkout {
   width: 100%;
-  background-color: #000;
+  background-color: #A08B7A;
   /* Nút đen */
   color: #fff;
   /* Chữ trắng */
@@ -810,7 +1053,7 @@ h2 {
 .checkout-content h3 {
   font-size: 1.5rem;
   font-weight: 700;
-  color: #000;
+  color: #333333;
   margin-bottom: 25px;
   text-align: center;
   border-bottom: 1px solid #eee;
@@ -858,7 +1101,7 @@ h2 {
 .form-group textarea:focus,
 .form-group select:focus {
   outline: none;
-  border-color: #000;
+  border-color: #333333;
   /* Viền đen khi focus */
   background-color: #fff;
 }
@@ -867,12 +1110,15 @@ h2 {
 .form-actions {
   display: flex;
   justify-content: flex-end;
-  /* Đẩy nút sang phải */
   gap: 15px;
-  /* Khoảng cách giữa 2 nút */
   margin-top: 30px;
-  padding-top: 20px;
-  border-top: 1px solid #eee;
+}
+
+.payment-hint {
+  font-size: 12px;
+  color: #d32f2f;
+  margin-top: 5px;
+  font-style: italic;
 }
 
 /* Nút Hủy */
@@ -889,13 +1135,13 @@ h2 {
 
 .form-actions button[type="button"]:hover {
   background-color: #f1f1f1;
-  color: #000;
+  color: #333333;
 }
 
 /* Nút Xác nhận (Style giống nút Checkout ở ngoài) */
 .btn-confirm {
   padding: 12px 30px;
-  background-color: #000;
+  background-color: #A08B7A;
   color: #fff;
   border: none;
   font-weight: 600;
@@ -972,7 +1218,7 @@ h2 {
 /* Hộp Modal chính */
 .modal-box {
   background: #fff;
-  border: 2px solid #000;
+  border: 2px solid #E6E0D8;
   /* Viền đen đậm vuông vức */
   padding: 30px;
   width: 400px;
@@ -988,7 +1234,7 @@ h2 {
   font-weight: 700;
   text-transform: uppercase;
   margin-bottom: 10px;
-  color: #000;
+  color: #333333;
 }
 
 .modal-desc {
@@ -1010,7 +1256,7 @@ h2 {
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
-  border: 1px solid #000;
+  border: 1px solid #E6E0D8;
   text-transform: uppercase;
   transition: all 0.2s;
 }
@@ -1018,7 +1264,7 @@ h2 {
 /* Nút Hủy */
 .btn-cancel {
   background: #fff;
-  color: #000;
+  color: #333333;
 }
 
 .btn-cancel:hover {
@@ -1027,7 +1273,7 @@ h2 {
 
 /* Nút Đồng ý */
 .btn-confirm {
-  background: #000;
+  background: #A08B7A;
   color: #fff;
 }
 
@@ -1127,5 +1373,160 @@ h2 {
   .form-actions button {
     width: 100%;
   }
+}
+
+/* ── COUPON TABS & PICKER ── */
+.coupon-tabs {
+  display: flex;
+  gap: 0;
+  margin-bottom: 10px;
+  border: 1px solid #E6E0D8;
+  border-radius: 6px;
+  overflow: hidden;
+}
+.coupon-tab {
+  flex: 1;
+  padding: 9px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  border: none;
+  background: #f9f7f5;
+  color: #777;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+}
+.coupon-tab.active {
+  background: #A08B7A;
+  color: #fff;
+}
+.coupon-tab:not(:last-child) {
+  border-right: 1px solid #E6E0D8;
+}
+.coupon-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  color: #A08B7A;
+  font-size: 11px;
+  font-weight: 800;
+}
+.coupon-tab.active .coupon-badge {
+  background: rgba(255,255,255,0.25);
+  color: #fff;
+}
+
+.coupon-picker {
+  margin-top: 4px;
+}
+.coupon-loading, .coupon-empty {
+  padding: 14px;
+  font-size: 13px;
+  color: #999;
+  text-align: center;
+}
+
+.coupon-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 280px;
+  overflow-y: auto;
+  padding: 2px 0;
+}
+
+.coupon-card {
+  border: 1.5px solid #E6E0D8;
+  border-radius: 8px;
+  padding: 12px 14px;
+  cursor: pointer;
+  transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+  background: #fff;
+  position: relative;
+}
+.coupon-card:hover:not(.disabled) {
+  border-color: #A08B7A;
+  box-shadow: 0 2px 8px rgba(160,139,122,0.15);
+}
+.coupon-card.selected {
+  border-color: #A08B7A;
+  background: #fdf8f5;
+  box-shadow: 0 2px 12px rgba(160,139,122,0.2);
+}
+.coupon-card.personal {
+  border-left: 4px solid #A08B7A;
+}
+.coupon-card.disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.coupon-card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.coupon-code {
+  font-size: 14px;
+  font-weight: 800;
+  font-family: monospace;
+  color: #333;
+  letter-spacing: 1px;
+  background: #f0ece8;
+  padding: 2px 7px;
+  border-radius: 4px;
+}
+.badge-personal {
+  font-size: 10px;
+  font-weight: 700;
+  background: #A08B7A;
+  color: #fff;
+  padding: 1px 6px;
+  border-radius: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.coupon-desc {
+  font-size: 12px;
+  color: #555;
+  margin: 0 0 4px;
+  line-height: 1.4;
+}
+.coupon-meta {
+  font-size: 12px;
+  font-weight: 600;
+  color: #A08B7A;
+}
+.coupon-min {
+  color: #999;
+  font-weight: 400;
+}
+.coupon-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 6px;
+}
+.coupon-exp {
+  font-size: 11px;
+  color: #aaa;
+}
+.coupon-warning {
+  font-size: 11px;
+  color: #e53e3e;
+  font-weight: 600;
+}
+.coupon-selected-label {
+  font-size: 11px;
+  color: #1a7a4a;
+  font-weight: 700;
 }
 </style>

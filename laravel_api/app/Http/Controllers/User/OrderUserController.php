@@ -58,16 +58,87 @@ class OrderUserController extends Controller
     }
 
     /**
-     * Hàm lấy chi tiết một đơn hàng cụ thể (Optional - Thường sẽ cần dùng)
+     * Hàm lấy chi tiết một đơn hàng cụ thể
      */
     public function show(Request $request, $orderCode)
     {
         $user = $request->user('sanctum');
 
-        $query = Order::with(['orderItems', 'couponUsages'])
+        $query = Order::with(['orderItems', 'couponUsages', 'payments']) // Thêm payments
             ->where('order_code', $orderCode);
 
         // Bảo mật: Chỉ cho phép xem nếu đúng chủ sở hữu
+        if ($user) {
+            $query->where('user_id', $user->id);
+        } else {
+            $sessionId = $request->input('session_id');
+            if ($sessionId) {
+                $query->where('session_id', $sessionId);
+            } else {
+                // Nếu không có session_id, có thể khách đang dùng link tra cứu trực tiếp
+                // -> Lúc này sẽ do hàm lookup xử lý
+                return response()->json(['status' => 'error', 'message' => 'Unauthorized'], 401);
+            }
+        }
+
+        $order = $query->first();
+
+        if ($order) {
+            \App\Models\Payment::where('order_id', $order->id)
+                ->where('status', 'pending')
+                ->where('created_at', '<', now()->subMinutes(1))
+                ->update(['status' => 'failed']);
+            $order->load('payments');
+        }
+
+        if (!$order) {
+            return response()->json(['status' => 'error', 'message' => 'Không tìm thấy đơn hàng'], 404);
+        }
+
+        return response()->json([
+            'status' => 'success',
+            'data' => $order
+        ]);
+    }
+
+    /**
+     * Tra cứu đơn hàng dành cho khách vãng lai (không cần login/session)
+     */
+    public function lookup(Request $request)
+    {
+        $request->validate([
+            'order_code' => 'required|string',
+            'phone' => 'required|string',
+        ]);
+
+        $order = Order::with(['orderItems', 'couponUsages', 'payments'])
+            ->where('order_code', $request->order_code)
+            ->where('phone', $request->phone)
+            ->first();
+
+        if (!$order) {
+            return response()->json([
+                'status' => 'error', 
+                'message' => 'Thông tin đơn hàng hoặc số điện thoại không chính xác'
+            ], 404);
+        }
+
+        return response()->json([
+            'status' => 'success',
+            'data' => $order
+        ]);
+    }
+
+    /**
+     * Hủy đơn hàng
+     */
+    public function cancel(Request $request, $orderCode)
+    {
+        $user = $request->user('sanctum');
+        
+        $query = Order::where('order_code', $orderCode);
+
+        // Bảo mật: Kiểm tra quyền sở hữu
         if ($user) {
             $query->where('user_id', $user->id);
         } else {
@@ -85,8 +156,21 @@ class OrderUserController extends Controller
             return response()->json(['status' => 'error', 'message' => 'Không tìm thấy đơn hàng'], 404);
         }
 
+        // Chỉ cho phép hủy khi đang ở trạng thái 'pending' (Chờ xác nhận)
+        if ($order->order_status !== 'pending') {
+            return response()->json([
+                'status' => 'error', 
+                'message' => 'Đơn hàng này không thể hủy do đã được xử lý hoặc đã giao.'
+            ], 400);
+        }
+
+        // Thực hiện hủy
+        $order->order_status = 'cancelled';
+        $order->save();
+
         return response()->json([
             'status' => 'success',
+            'message' => 'Hủy đơn hàng thành công',
             'data' => $order
         ]);
     }

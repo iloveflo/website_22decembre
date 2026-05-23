@@ -5,7 +5,7 @@
     <!-- Thanh tìm kiếm / lọc -->
     <div class="toolbar">
       <input v-model="filters.search" type="text" class="input" placeholder="Tìm theo tên, SKU..."
-        @keyup.enter="fetchProducts" />
+        @input="handleSearch" />
 
       <!-- Lọc theo nhóm cha: Áo / Quần / Phụ kiện / Bộ sưu tập -->
       <select v-model="selectedParentId" class="input select" @change="handleParentChange">
@@ -38,8 +38,7 @@
             <th>Ảnh</th>
             <th>Tên</th>
             <th>Danh mục</th>
-            <th>Màu sắc</th>
-            <th>Size</th>
+            <th>Thuộc tính</th>
             <th>Số lượng</th>
             <th>Giá</th>
             <th>Trạng thái</th>
@@ -69,34 +68,19 @@
             <!-- Danh mục -->
             <td>{{ product.category?.name || '-' }}</td>
 
-            <!-- MÀU SẮC: mỗi biến thể 1 dòng -->
-            <td>
-              <div v-if="product.variants && product.variants.length">
-                <div v-for="v in product.variants" :key="v.id" class="variant-line">
-                  {{ v.color_name || v.color_code || '-' }}
-                </div>
+            <!-- THUỘC TÍNH (ĐỘNG) -->
+            <td class="attributes-cell">
+              <div v-for="(vals, key) in getAggregateAttributes(product)" :key="key" class="attr-line">
+                <span class="attr-key">{{ key }}:</span>
+                <span class="attr-vals">{{ vals.join(', ') }}</span>
               </div>
-              <span v-else>-</span>
             </td>
 
-            <!-- SIZE: mỗi biến thể 1 dòng, cùng thứ tự với màu -->
+            <!-- SỐ LƯỢNG -->
             <td>
-              <div v-if="product.variants && product.variants.length">
-                <div v-for="v in product.variants" :key="v.id" class="variant-line">
-                  {{ v.size || '-' }}
-                </div>
-              </div>
-              <span v-else>-</span>
-            </td>
-
-            <!-- SỐ LƯỢNG: mỗi biến thể 1 dòng, cùng thứ tự luôn -->
-            <td>
-              <div v-if="product.variants && product.variants.length">
-                <div v-for="v in product.variants" :key="v.id" class="variant-line">
-                  {{ v.quantity ?? 0 }}
-                </div>
-              </div>
-              <span v-else>{{ product.quantity }}</span>
+              <span class="total-stock-count" :class="{ 'text-danger': (product.stock_quantity || 0) <= 0 }">
+                {{ product.stock_quantity || 0 }}
+              </span>
             </td>
 
             <!-- Giá / Trạng thái / Thao tác giữ nguyên -->
@@ -156,6 +140,7 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import axios from 'axios'
+import Swal from 'sweetalert2'
 import ProductFormModal from '../../components/admin/ProductFormModal.vue'
 import ProductImagesModal from '../../components/admin/ProductImagesModal.vue'
 
@@ -180,6 +165,14 @@ const editingProduct = ref(null)
 
 const showImages = ref(false)
 const currentProductForImages = ref(null)
+let searchTimeout = null // Để debounce search
+
+const handleSearch = () => {
+  if (searchTimeout) clearTimeout(searchTimeout)
+  searchTimeout = setTimeout(() => {
+    fetchProducts(1) // Reset về trang 1 khi tìm kiếm
+  }, 500) // Đợi 500ms sau khi ngừng gõ mới tìm
+}
 
 const openImageModal = (product) => {
   currentProductForImages.value = product
@@ -203,7 +196,7 @@ const childCategories = computed(() => {
 
 const fetchCategories = async () => {
   try {
-    const res = await axios.get('/admin/products/categories')
+    const res = await axios.get('/admin/categories')
     categories.value = res.data
   } catch (e) {
     console.error('Lỗi load categories', e)
@@ -254,12 +247,8 @@ const openEditForm = async (product) => {
     showForm.value = true
   } catch (e) {
     console.error('Lỗi tải chi tiết sản phẩm', e)
-    alert('Không tải được chi tiết sản phẩm')
+    Swal.fire('Lỗi', 'Không tải được chi tiết sản phẩm', 'error')
   }
-}
-
-const closeForm = () => {
-  showForm.value = false
 }
 
 const onSaved = () => {
@@ -267,16 +256,30 @@ const onSaved = () => {
   fetchProducts(products.value.current_page || 1)
 }
 
+const closeForm = () => {
+  showForm.value = false
+}
+
 const deleteProduct = async (id) => {
-  if (!confirm('Bạn chắc chắn muốn xóa sản phẩm này?')) return
+  const result = await Swal.fire({
+    title: 'Xóa sản phẩm?',
+    text: 'Bạn chắc chắn muốn xóa sản phẩm này?',
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonText: 'Xóa',
+    cancelButtonText: 'Hủy'
+  });
+  if (!result.isConfirmed) return;
+  
   try {
     await axios.post(`/admin/products/${id}`, {
-    _method: 'DELETE'
-});
+      _method: 'DELETE'
+    });
+    Swal.fire('Đã xóa!', 'Sản phẩm đã được xóa thành công.', 'success');
     fetchProducts(products.value.current_page || 1)
   } catch (e) {
     console.error(e)
-    alert('Xóa sản phẩm thất bại')
+    Swal.fire('Lỗi', 'Xóa sản phẩm thất bại', 'error')
   }
 }
 
@@ -305,38 +308,25 @@ const getMainImageSrc = (product) => {
   return null
 }
 
-// Lấy danh sách màu (color_name) từ variants
-const getColorNames = (product) => {
-  if (!product.variants || !product.variants.length) return '-'
+// Lấy danh sách thuộc tính tổng hợp từ các variants
+const getAggregateAttributes = (product) => {
+  if (!product.variants || !product.variants.length) return {}
 
-  const names = product.variants
-    .map((v) => v.color_name || '')
-    .filter((name) => name.trim() !== '')
+  const aggregate = {}
+  product.variants.forEach(v => {
+    const attrs = v.variant_attributes || {}
+    Object.keys(attrs).forEach(key => {
+      if (!aggregate[key]) aggregate[key] = new Set()
+      if (attrs[key]) aggregate[key].add(attrs[key])
+    })
+  })
 
-  const unique = [...new Set(names)]
-
-  // Nếu không có color_name, có thể fallback sang color_code
-  if (!unique.length) {
-    const codes = product.variants
-      .map((v) => v.color_code || '')
-      .filter((c) => c.trim() !== '')
-    return codes.length ? [...new Set(codes)].join(', ') : '-'
-  }
-
-  return unique.join(', ')
-}
-
-// Lấy danh sách size từ variants
-const getSizeList = (product) => {
-  if (!product.variants || !product.variants.length) return '-'
-
-  const sizes = product.variants
-    .map((v) => v.size || '')
-    .filter((s) => s.trim() !== '')
-
-  const unique = [...new Set(sizes)]
-
-  return unique.length ? unique.join(', ') : '-'
+  // Chuyển Set thành Array để hiển thị
+  const result = {}
+  Object.keys(aggregate).forEach(key => {
+    result[key] = [...aggregate[key]]
+  })
+  return result
 }
 
 </script>
@@ -351,14 +341,14 @@ const getSizeList = (product) => {
   min-height: 100vh;
   padding: 40px;
   color: #1a1a1a;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  
 }
 
 /* ============== PAGE TITLE ============== */
 .page-title {
   font-size: 32px;
   font-weight: 700;
-  color: #000000;
+  color: #333333;
   margin: 0 0 40px 0;
   padding-bottom: 16px;
   border-bottom: 2px solid #e5e5e5;
@@ -389,7 +379,7 @@ const getSizeList = (product) => {
 }
 
 .input:focus {
-  border-color: #000;
+  border-color: #333333;
   background: #ffffff;
 }
 
@@ -433,9 +423,9 @@ const getSizeList = (product) => {
 }
 
 .btn.primary {
-  background: #000;
+  background: #A08B7A;
   color: #fff;
-  border-color: #000;
+  border-color: #333333;
   font-weight: 600;
 }
 
@@ -530,7 +520,7 @@ const getSizeList = (product) => {
 }
 
 .name-cell strong {
-  color: #000;
+  color: #333333;
   display: block;
   margin-bottom: 4px;
   font-weight: 600;
@@ -542,13 +532,27 @@ const getSizeList = (product) => {
   margin-top: 4px;
 }
 
-.variant-line {
-  padding: 4px 0;
-  border-bottom: 1px solid #e5e5e5;
-}
-
 .variant-line:last-child {
   border-bottom: none;
+}
+
+.attributes-cell {
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.attr-line {
+  margin-bottom: 2px;
+}
+
+.attr-key {
+  font-weight: 600;
+  color: #666;
+  margin-right: 4px;
+}
+
+.attr-vals {
+  color: #1a1a1a;
 }
 
 /* ============== BADGES ============== */
@@ -599,6 +603,16 @@ const getSizeList = (product) => {
 .text-muted {
   color: #999;
   font-size: 14px;
+}
+
+.total-stock-count {
+  font-weight: 800;
+  font-size: 1.1rem;
+  color: #1a1a1a;
+}
+
+.text-danger {
+  color: #dc2626 !important;
 }
 
 /* ============== RESPONSIVE ============== */

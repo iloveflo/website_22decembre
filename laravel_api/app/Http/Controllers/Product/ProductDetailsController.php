@@ -19,6 +19,7 @@ class ProductDetailsController extends Controller
             },
             'variants',
         ])
+            ->activeCategory() // Phải thuộc danh mục đang active mới cho xem chi tiết
             ->where('slug', $slug)
             ->where('status', 'active')
             ->first();

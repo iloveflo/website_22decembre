@@ -20,8 +20,8 @@
           </svg>
         </button>
 
-        <router-link to="/" class="logo">
-          FLORENTIC
+        <router-link to="/" class="logo" style="font-family: var(--font-heading);">
+          22.Décembre
         </router-link>
 
         <nav class="nav" :class="{ 'mobile-open': mobileMenuOpen }">
@@ -30,49 +30,28 @@
           <div class="nav-dropdown mega-parent">
             <router-link to="/products" class="nav-link">SẢN PHẨM</router-link>
             
-            <div class="mega-menu">
+            <div class="mega-menu" v-if="categoriesTree && categoriesTree.length">
               <div class="mega-content">
-                
-                <div class="mega-column">
-                  <h4 class="column-title"><router-link :to="{ name: 'product-category', params: { slug: 'ao' } }">Áo</router-link></h4>
-                  <ul class="column-list">
-                    <li><router-link :to="{ name: 'product-category', params: { slug: 't-shirts' } }">Áo Thun (T-Shirts)</router-link></li>
-                    <li><router-link :to="{ name: 'product-category', params: { slug: 'shirts' } }">Áo Sơ Mi (Shirts)</router-link></li>
-                    <li><router-link :to="{ name: 'product-category', params: { slug: 'polo' } }">Áo Polo</router-link></li>
-                    <li><router-link :to="{ name: 'product-category', params: { slug: 'jackets' } }">Áo Khoác / Blazer</router-link></li>
-                    <li><router-link :to="{ name: 'product-category', params: { slug: 'hoodies' } }">Hoodie & Sweatshirt</router-link></li>
+                <div v-for="parent in categoriesTree" :key="parent.id" class="mega-column">
+                  <h4 class="column-title">
+                    <router-link :to="{ name: 'product-category', params: { slug: parent.slug } }">
+                      {{ parent.name }}
+                    </router-link>
+                  </h4>
+                  <ul class="column-list" v-if="parent.children && parent.children.length">
+                    <li v-for="child in parent.children" :key="child.id">
+                      <router-link :to="{ name: 'product-category', params: { slug: child.slug } }">
+                        {{ child.name }}
+                      </router-link>
+                    </li>
                   </ul>
                 </div>
 
-                <div class="mega-column">
-                  <h4 class="column-title"><router-link :to="{ name: 'product-category', params: { slug: 'quan' } }">QUẦN</router-link></h4>
-                  <ul class="column-list">
-                    <li><router-link :to="{ name: 'product-category', params: { slug: 'trousers' } }">Quần Tây (Trousers)</router-link></li>
-                    <li><router-link :to="{ name: 'product-category', params: { slug: 'jeans' } }">Denim / Jeans</router-link></li>
-                    <li><router-link :to="{ name: 'product-category', params: { slug: 'shorts' } }">Quần Short</router-link></li>
-                    <li><router-link :to="{ name: 'product-category', params: { slug: 'kaki' } }">Quần Kaki</router-link></li>
-                    <li><router-link :to="{ name: 'product-category', params: { slug: 'joggers' } }">Quần Jogger</router-link></li>
-                  </ul>
-                </div>
-
-                <div class="mega-column">
-                  <h4 class="column-title"><router-link :to="{ name: 'product-category', params: { slug: 'phu-kien' } }">PHỤ KIỆN</router-link></h4>
-                  <ul class="column-list">
-                    <li><router-link :to="{ name: 'product-category', params: { slug: 'bags' } }">Túi Xách / Balo</router-link></li>
-                    <li><router-link :to="{ name: 'product-category', params: { slug: 'hats' } }">Mũ / Nón</router-link></li>
-                    <li><router-link :to="{ name: 'product-category', params: { slug: 'belts' } }">Thắt Lưng</router-link></li>
-                    <li><router-link :to="{ name: 'product-category', params: { slug: 'wallets' } }">Ví Da</router-link></li>
-                    <li><router-link :to="{ name: 'product-category', params: { slug: 'socks' } }">Tất / Vớ</router-link></li>
-                  </ul>
-                </div>
-
+                <!-- Cột đặc biệt hoặc Sale nếu muốn giữ cố định (Tùy chọn) -->
                 <div class="mega-column highlight-column">
-                  <h4 class="column-title"><router-link :to="{ name: 'product-category', params: { slug: 'bo-suu-tap' } }">BỘ SƯU TẬP</router-link></h4>
+                  <h4 class="column-title">KHUYẾN MÃI</h4>
                   <ul class="column-list">
-                    <li><router-link :to="{ name: 'product-category', params: { slug: 'new-arrivals' } }">New Arrivals 2025</router-link></li>
-                    <li><router-link :to="{ name: 'product-category', params: { slug: 'essentials' } }">The Essentials</router-link></li>
-                    <li><router-link :to="{ name: 'product-category', params: { slug: 'monochrome' } }">Monochrome Series</router-link></li>
-                    <li class="mt-4"><router-link :to="{ name: 'product-category', params: { slug: 'sale' } }" class="text-sale">VIEW ALL SALE</router-link></li>
+                    <li><router-link :to="{ name: 'product-category', params: { slug: 'sale' } }" class="text-sale">VIEW ALL SALE</router-link></li>
                   </ul>
                 </div>
               </div>
@@ -109,6 +88,17 @@
               </button>
             </div>
           </div>
+
+          <!-- Lịch sử giao dịch (Thông minh: Tự nhận diện User hoặc Guest) -->
+          <router-link to="/user/orders" class="icon-btn lookup-btn" title="Lịch sử giao dịch">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+              <line x1="16" y1="13" x2="8" y2="13"></line>
+              <line x1="16" y1="17" x2="8" y2="17"></line>
+              <polyline points="10 9 9 9 8 9"></polyline>
+            </svg>
+          </router-link>
 
           <!-- User Account -->
           <div class="account-wrapper">
@@ -177,8 +167,6 @@ import { useRouter } from 'vue-router'
 import axios from 'axios'
 
 const router = useRouter()
-const email = ref('')
-const rememberMe = ref(false)
 const searchOpen = ref(false)
 const searchQuery = ref('')
 const mobileMenuOpen = ref(false)
@@ -187,99 +175,77 @@ let sessionCheckInterval = null
 
 // 👉 STATE USER
 const user = ref(null)
-
-const cartCount = ref(0);
-
+const cartCount = ref(0)
+const categoriesTree = ref([])
 
 // [MỚI] Hàm kiểm tra thời gian hết hạn
 const checkSessionExpiration = () => {
   const token = localStorage.getItem('token')
-  const expiresAtString = localStorage.getItem('expires_at') // Backend phải trả về cái này lúc login
+  const expiresAtString = localStorage.getItem('expires_at')
 
-  // Nếu không có token hoặc chưa lưu thời gian hết hạn thì thôi
   if (!token || !expiresAtString) return
 
   const now = new Date()
   const expirationTime = new Date(expiresAtString)
 
-  // So sánh: Nếu giờ hiện tại >= giờ hết hạn
   if (now >= expirationTime) {
     showSessionAlert.value = true
-    // Dừng kiểm tra để đỡ tốn tài nguyên
     if (sessionCheckInterval) clearInterval(sessionCheckInterval)
   }
 }
 
-// [MỚI] Xử lý khi bấm nút "Đăng nhập lại"
 const handleSessionExpiredConfirm = async () => {
   showSessionAlert.value = false
-  await logout() // Tận dụng hàm logout có sẵn bên dưới
+  await logout()
   router.push('/login')
 }
 
-// Hàm gọi API lấy số lượng
 const fetchCartCount = async () => {
   try {
-    const token = localStorage.getItem('token');
-    const sessionId = sessionStorage.getItem('cart_session_id');
+    const token = localStorage.getItem('token')
+    const sessionId = sessionStorage.getItem('cart_session_id')
 
-    // Nếu không có gì thì reset về 0
     if (!token && !sessionId) {
-      cartCount.value = 0;
-      return;
+      cartCount.value = 0
+      return
     }
 
     const config = {
       params: { session_id: sessionId },
       headers: token ? { 'Authorization': `Bearer ${token}` } : {}
-    };
+    }
 
-    const response = await axios.get(`/cart`, config);
-    
+    const response = await axios.get(`/cart`, config)
     if (response.data && response.data.summary) {
-      cartCount.value = response.data.summary.total_items;
+      cartCount.value = response.data.summary.total_items
     }
   } catch (error) {
-    console.error("Lỗi lấy giỏ hàng:", error);
+    console.error("Lỗi lấy giỏ hàng:", error)
   }
-};
+}
 
-// Lifecycle
-onMounted(() => {
-  // 1. Gọi ngay khi Header hiện ra
-  fetchCartCount();
+const fetchPublicCategories = async () => {
+  try {
+    const response = await axios.get('/categories/tree')
+    categoriesTree.value = response.data
+  } catch (error) {
+    console.error("Lỗi lấy danh mục:", error)
+  }
+}
 
-  // 2. Đăng ký lắng nghe sự kiện 'cart-updated' từ bất kỳ đâu phát ra
-  window.addEventListener('cart-updated', fetchCartCount);
-  // [MỚI] Kích hoạt bộ đếm kiểm tra mỗi 1 phút (60000ms)
-  checkSessionExpiration() // Kiểm tra ngay lập tức khi load trang
-  sessionCheckInterval = setInterval(checkSessionExpiration, 60000)
-});
-
-onUnmounted(() => {
-  if (sessionCheckInterval) clearInterval(sessionCheckInterval);
-  // Dọn dẹp sự kiện khi Header bị hủy (tránh lỗi memory leak)
-  window.removeEventListener('cart-updated', fetchCartCount);
-});
-
-// --- FETCH USER INFO /me ---
 async function fetchUser() {
   const token = localStorage.getItem('token')
   if (!token) return
 
   try {
-    const res = await axios.get('/me', {
-      headers: { Authorization: `Bearer ${token}` }
-    })
-    const currentUser = res.data.user || res.data // tùy backend trả về
+    const res = await axios.get('/me')
+    const currentUser = res.data.user || res.data
 
-    // Nếu admin → redirect thẳng admin
     if (currentUser.role === 'admin') {
       window.location.href = '/admin'
       return
     }
 
-    // User thường → gán vào reactive
     user.value = {
       id: currentUser.id,
       email: currentUser.email,
@@ -288,7 +254,6 @@ async function fetchUser() {
       avatar: currentUser.avatar,
       role: currentUser.role,
     }
-
   } catch (err) {
     console.log('Không thể lấy thông tin user:', err)
     localStorage.removeItem('token')
@@ -296,34 +261,38 @@ async function fetchUser() {
   }
 }
 
-// --- ON MOUNTED ---
 onMounted(() => {
-  // Nếu rememberedEmail tồn tại và không phải admin, auto-fill
-  const remembered = localStorage.getItem('rememberedEmail')
-  if (remembered) {
-    email.value = remembered
-    rememberMe.value = true
-  }
-
+  fetchCartCount()
+  fetchPublicCategories()
   fetchUser()
+
+  window.addEventListener('cart-updated', fetchCartCount)
+  
+  checkSessionExpiration()
+  sessionCheckInterval = setInterval(checkSessionExpiration, 60000)
+
+  // Auto-fill email if remembered
+  const remembered = localStorage.getItem('rememberedEmail')
+  // Note: email ref was unused in template but kept for logic if needed
 })
 
-// --- LOGOUT ---
- async function logout() {
+onUnmounted(() => {
+  if (sessionCheckInterval) clearInterval(sessionCheckInterval)
+  window.removeEventListener('cart-updated', fetchCartCount)
+})
+
+async function logout() {
   try {
-     await axios.post('/logout', {}, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } })
+    await axios.post('/logout')
   } catch (e) { /* ignore */ }
 
-  // Clear localStorage và reactive user
   localStorage.removeItem('token')
   localStorage.removeItem('rememberedEmail')
-  localStorage.removeItem('expires_at') // [MỚI] Xóa luôn cái này
+  localStorage.removeItem('expires_at')
   user.value = null
-
   router.push('/')
 }
 
-// ------ SEARCH FUNCTIONS ------
 const toggleSearch = () => { searchOpen.value = !searchOpen.value }
 const toggleMobileMenu = () => { mobileMenuOpen.value = !mobileMenuOpen.value }
 const performSearch = () => {
@@ -383,7 +352,7 @@ const performSearch = () => {
 }
 
 .modal-btn {
-  background-color: #000; /* Màu đen chủ đạo của web bạn */
+  background-color: #A08B7A; /* Màu đen chủ đạo của web bạn */
   color: white;
   border: none;
   padding: 12px 24px;
@@ -409,16 +378,16 @@ const performSearch = () => {
   to { transform: translateY(0); opacity: 1; }
 }
 .header-wrapper {
-  font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  font-family: var(--font-body);
 }
 
 /* ----- Top Bar ----- */
 .top-bar {
-  background-color: #000;
-  color: #fff;
-  font-size: 13px; /* Giảm nhẹ size trên mobile cho đỡ chật */
+  background-color: #E6E0D8;
+  color: #555;
+  font-size: 11px;
   text-transform: uppercase;
-  letter-spacing: 1px;
+  letter-spacing: 3px;
   text-align: center;
   padding: 8px 10px;
   font-weight: 600;
@@ -435,15 +404,15 @@ const performSearch = () => {
 
 /* ----- Header - FIXED ----- */
 .site-header {
-  background-color: #fff;
-  border-bottom: 1px solid #000;
+  background-color: #E6E0D8;
+  border-bottom: 1px solid #D9CFC4;
   position: fixed;
   top: 32px; /* Bằng chiều cao top-bar */
   left: 0;
   right: 0;
   z-index: 1000;
   height: 70px; /* Giảm nhẹ chiều cao header cho gọn */
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  /* box-shadow removed for a cleaner look */
   transition: top 0.3s;
 }
 
@@ -459,21 +428,21 @@ const performSearch = () => {
 
 /* ----- Logo ----- */
 .logo {
-  font-weight: 800;
-  font-size: 20px; /* Resize cho phù hợp */
-  color: #000;
+  font-weight: 600;
+  font-size: 26px;
+  color: #333333;
   text-decoration: none;
-  letter-spacing: 2px;
-  text-transform: uppercase;
-  border: 2px solid #000;
-  padding: 5px 10px;
-  transition: all 0.3s ease;
+  letter-spacing: 1px;
+  transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
   white-space: nowrap;
+  display: inline-block;
 }
 
 .logo:hover {
-  background-color: #000;
-  color: #fff;
+  color: #A08B7A;
+  transform: scale(1.05);
+  text-shadow: 0 4px 15px rgba(160, 139, 122, 0.25);
+  letter-spacing: 2px;
 }
 
 /* ----- Navigation Menu (Desktop Base) ----- */
@@ -481,12 +450,13 @@ const performSearch = () => {
   display: flex;
   align-items: center;
   gap: 30px;
+  height: 100%;
 }
 
 .nav-link {
   font-size: 13px;
   font-weight: 600;
-  color: #000;
+  color: #333333;
   text-decoration: none;
   text-transform: uppercase;
   letter-spacing: 1px;
@@ -502,10 +472,10 @@ const performSearch = () => {
   content: '';
   position: absolute;
   width: 0;
-  height: 2px;
-  bottom: 15px;
+  height: 1px;
+  bottom: 22px;
   left: 0;
-  background-color: #000;
+  background-color: #A08B7A;
   transition: width 0.3s ease;
 }
 
@@ -516,6 +486,9 @@ const performSearch = () => {
 /* ----- Mega Menu ----- */
 .mega-parent {
   position: static; /* Quan trọng để mega menu full width */
+  height: 100%;
+  display: flex;
+  align-items: center;
 }
 
 .mega-menu {
@@ -526,7 +499,7 @@ const performSearch = () => {
   left: 0;
   width: 100%;
   background-color: #fff;
-  border-bottom: 1px solid #000;
+  border-bottom: 1px solid #E6E0D8;
   z-index: 99;
   transition: all 0.3s ease;
   transform: translateY(10px);
@@ -551,11 +524,11 @@ const performSearch = () => {
 .column-title {
   font-size: 14px;
   font-weight: 800;
-  color: #000;
+  color: #333333;
   margin-bottom: 20px;
   text-transform: uppercase;
   letter-spacing: 1px;
-  border-left: 3px solid #000;
+  border-left: 3px solid #A08B7A;
   padding-left: 10px;
 }
 
@@ -588,7 +561,7 @@ const performSearch = () => {
 }
 
 .column-list a:hover {
-  color: #000;
+  color: #333333;
   padding-left: 5px;
 }
 
@@ -611,7 +584,7 @@ const performSearch = () => {
   border: none;
   cursor: pointer;
   padding: 5px;
-  color: #000;
+  color: #333333;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -670,7 +643,7 @@ const performSearch = () => {
 .account-dropdown { min-width: 180px; }
 .search-dropdown { display: flex; padding: 10px; min-width: 250px; }
 .search-input { flex: 1; padding: 8px; background: #f5f5f5; border: none; outline: none; }
-.search-btn { background: #000; color: #fff; border: none; padding: 8px 12px; cursor: pointer; }
+.search-btn { background: #A08B7A; color: #fff; border: none; padding: 8px 12px; cursor: pointer; }
 
 .account-dropdown .dropdown-item, .account-dropdown .logout-btn {
   display: block;
@@ -686,7 +659,7 @@ const performSearch = () => {
 }
 .account-dropdown .dropdown-item:hover, .account-dropdown .logout-btn:hover {
   background: #f5f5f5;
-  color: #000;
+  color: #333333;
 }
 .divider { height: 1px; background: #eee; margin: 0; }
 
@@ -703,7 +676,7 @@ const performSearch = () => {
     border: none;
     cursor: pointer;
     padding: 0;
-    color: #000;
+    color: #333333;
   }
 
   .logo {
