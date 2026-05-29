@@ -26,23 +26,27 @@
     <section class="card">
       <h2>Gửi tin nhắn</h2>
 
-      <form class="contact-form">
+      <form class="contact-form" @submit.prevent="submitForm">
         <div class="form-row">
           <label>Họ tên</label>
-          <input type="text" placeholder="Tên của bạn">
+          <input type="text" v-model="form.name" placeholder="Tên của bạn" required>
         </div>
 
         <div class="form-row">
           <label>Email</label>
-          <input type="email" placeholder="Email của bạn">
+          <input type="email" v-model="form.email" placeholder="Email của bạn" required>
         </div>
 
         <div class="form-row">
           <label>Nội dung</label>
-          <textarea placeholder="Bạn muốn gửi điều gì?"></textarea>
+          <textarea v-model="form.message" placeholder="Bạn muốn gửi điều gì?" required></textarea>
         </div>
 
-        <button type="submit" class="submit-btn">Gửi Tin Nhắn</button>
+        <button type="submit" class="submit-btn" :disabled="loading">
+          {{ loading ? 'Đang gửi...' : 'Gửi Tin Nhắn' }}
+        </button>
+        
+        <p v-if="statusMessage" :class="['status-message', statusClass]">{{ statusMessage }}</p>
       </form>
     </section>
 
@@ -50,6 +54,42 @@
 </template>
 
 <script setup>
+import { reactive, ref } from 'vue';
+import axios from 'axios';
+
+const form = reactive({
+  name: '',
+  email: '',
+  message: ''
+});
+
+const loading = ref(false);
+const statusMessage = ref('');
+const statusClass = ref('');
+
+const submitForm = async () => {
+  loading.value = true;
+  statusMessage.value = '';
+  
+  try {
+    const response = await axios.post('/contact', form);
+    if (response.data.status === 'success') {
+      statusClass.value = 'success';
+      statusMessage.value = response.data.message;
+      form.name = '';
+      form.email = '';
+      form.message = '';
+    } else {
+      statusClass.value = 'error';
+      statusMessage.value = response.data.message || 'Có lỗi xảy ra.';
+    }
+  } catch (error) {
+    statusClass.value = 'error';
+    statusMessage.value = 'Có lỗi kết nối. Vui lòng thử lại sau.';
+  } finally {
+    loading.value = false;
+  }
+};
 </script>
 
 <style scoped>
@@ -181,8 +221,21 @@ textarea {
   letter-spacing: 1px;
 }
 
-.submit-btn:hover {
+.submit-btn:hover:not(:disabled) {
   background: #fff;
   color: #333333;
 }
+
+.submit-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.status-message {
+  margin-top: 15px;
+  font-size: 14px;
+  font-weight: 600;
+}
+.status-message.success { color: #16a34a; }
+.status-message.error { color: #dc2626; }
 </style>

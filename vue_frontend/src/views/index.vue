@@ -4,7 +4,6 @@
     
     <main class="main-content">
       <router-view />
-      <WelcomePopup />
     </main>
     
     <Footer />
@@ -16,6 +15,4 @@
 <script setup>
 import Header from '../components/header.vue';
 import Footer from '../components/footer.vue';
-
-import WelcomePopup from '../components/WelcomePopup.vue';
 </script>

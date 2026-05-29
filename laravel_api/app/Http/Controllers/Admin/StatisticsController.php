@@ -338,21 +338,32 @@ class StatisticsController extends Controller
             ->take(5)
             ->get();
 
-        // 2. Sản phẩm sắp hết hàng (Low Stock)
-        // Logic: Tổng tồn kho = Tổng quantity của tất cả Variants thuộc Product đó
-        $lowStockProducts = Product::query()
-            ->select('products.id', 'products.name', 'products.price', 'products.status')
-            ->leftJoin('product_variants', 'products.id', '=', 'product_variants.product_id')
-            ->selectRaw('SUM(COALESCE(product_variants.quantity, 0)) as total_stock')
-            ->groupBy('products.id', 'products.name', 'products.price', 'products.status')
-            ->having('total_stock', '<', 10) // Ngưỡng cảnh báo: dưới 10
-            ->orderBy('total_stock', 'asc')
+        // 2. Sản phẩm/Biến thể sắp hết hàng (Low Stock)
+        // Logic: Lấy từng biến thể có quantity < 10
+        $lowStockVariants = \DB::table('product_variants')
+            ->join('products', 'product_variants.product_id', '=', 'products.id')
+            ->select(
+                'product_variants.id',
+                'products.name as product_name',
+                'product_variants.variant_attributes',
+                'product_variants.quantity as total_stock'
+            )
+            ->where('product_variants.quantity', '<', 10)
+            ->orderBy('product_variants.quantity', 'asc')
             ->take(5)
             ->get();
 
-        // Kích hoạt accessor main_image_url cho danh sách này
-        $lowStockProducts->each(function ($p) {
-            $p->append('main_image_url');
+        $lowStockProducts = $lowStockVariants->map(function ($item) {
+            $attrs = json_decode($item->variant_attributes, true);
+            $attrString = '';
+            if (is_array($attrs) && !empty($attrs)) {
+                $attrString = implode(' - ', array_values($attrs));
+            }
+            return [
+                'id' => $item->id,
+                'name' => $item->product_name . ($attrString ? ' (' . $attrString . ')' : ''),
+                'total_stock' => $item->total_stock
+            ];
         });
 
         return response()->json([

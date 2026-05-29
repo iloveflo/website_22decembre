@@ -92,11 +92,6 @@
         </div>
 
         <div class="header-right">
-          <div class="search-bar">
-            <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-            <input type="text" placeholder="Tìm kiếm hệ thống..." />
-          </div>
-          
           <div v-if="currentUser" class="user-profile">
             <div class="user-info">
               <div class="user-name">{{ currentUser?.full_name || (currentUser?.role === 'admin' ? 'Quản trị viên' : 'Nhân viên') }}</div>

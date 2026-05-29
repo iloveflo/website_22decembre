@@ -77,29 +77,6 @@
           <textarea v-model="form.description" rows="3" />
         </div>
 
-        <!-- Cấu hình Thuộc tính (Động) -->
-        <div class="attributes-config">
-          <div class="config-header">
-            <h3>Cấu hình thuộc tính (VD: Màu sắc, Kích thước)</h3>
-            <button type="button" class="btn small" @click="addAttributeKey">
-              + Thêm thuộc tính
-            </button>
-          </div>
-          <div class="attribute-keys-list">
-            <div v-for="(key, kIdx) in attributeKeys" :key="kIdx" class="key-item">
-              <select v-model="attributeKeys[kIdx]" @change="onAttributeKeyChange(kIdx)" style="border:none; outline:none; font-size:13px; padding:4px;">
-                <option value="" disabled>-- Chọn thuộc tính --</option>
-                <option value="Màu sắc">Màu sắc</option>
-                <option value="Kích thước">Kích thước</option>
-                <option value="Chất liệu">Chất liệu</option>
-                <option value="Kiểu dáng">Kiểu dáng</option>
-                <option value="Giới tính">Giới tính</option>
-              </select>
-              <button type="button" class="btn-remove" @click="removeAttributeKey(kIdx)">×</button>
-            </div>
-          </div>
-        </div>
-
         <!-- Biến thể -->
         <div class="variants-block">
           <div class="variants-header">
@@ -115,7 +92,6 @@
                 <tr>
                   <th v-for="key in attributeKeys" :key="key">{{ key || 'Thuộc tính' }}</th>
                   <th>Số lượng</th>
-                  <th>Phụ phí (+VND)</th>
                   <th>SKU riêng</th>
                   <th></th>
                 </tr>
@@ -135,14 +111,6 @@
                       type="number"
                       min="0"
                       style="width: 80px"
-                    />
-                  </td>
-                  <td>
-                    <input
-                      v-model.number="v.additional_price"
-                      type="number"
-                      min="0"
-                      style="width: 100px"
                     />
                   </td>
                   <td>
@@ -204,7 +172,7 @@ const props = defineProps({
 const emit = defineEmits(['close', 'saved'])
 
 const selectedParentId = ref('')
-const attributeKeys = ref(['Màu sắc', 'Kích thước']) // Mặc định
+const attributeKeys = ref(['Màu', 'Size']) // Mặc định
 
 const form = ref({
   name: '',
@@ -220,11 +188,8 @@ const submitting = ref(false)
 const isEdit = computed(() => props.mode === 'edit')
 
 const baseAttributeOptions = {
-  'Màu sắc': ['Đen', 'Trắng', 'Đỏ', 'Xanh', 'Vàng', 'Xám', 'Hồng', 'Cam'],
-  'Kích thước': ['S', 'M', 'L', 'XL', 'XXL'],
-  'Chất liệu': ['Cotton', 'Kaki', 'Denim', 'Nỉ', 'Lụa', 'Len', 'Polyester', 'Da'],
-  'Kiểu dáng': ['Regular Fit', 'Slim Fit', 'Oversize', 'Khác'],
-  'Giới tính': ['Nam', 'Nữ', 'Unisex']
+  'Màu': ['Đen', 'Trắng', 'Đỏ', 'Xanh', 'Vàng', 'Xám', 'Hồng', 'Cam'],
+  'Size': ['S', 'M', 'L', 'XL', 'XXL'],
 }
 
 const attributeOptions = computed(() => {
@@ -253,7 +218,6 @@ const createEmptyAttributes = () => {
 const defaultVariant = () => ({
   variant_attributes: createEmptyAttributes(),
   quantity: 0,
-  additional_price: 0,
   sku: ''
 })
 
@@ -271,7 +235,7 @@ watch(totalQuantity, (newVal) => {
 
 const resetForm = () => {
   selectedParentId.value = ''
-  attributeKeys.value = ['Màu sắc', 'Kích thước']
+  attributeKeys.value = ['Màu', 'Size']
   form.value = {
     name: '',
     category_id: '',
@@ -300,41 +264,6 @@ const onParentChange = () => {
   form.value.category_id = ''
 }
 
-// Thuộc tính động
-const addAttributeKey = () => {
-  attributeKeys.value.push('')
-}
-
-const removeAttributeKey = (index) => {
-  const keyToRemove = attributeKeys.value[index]
-  attributeKeys.value.splice(index, 1)
-  // Xóa key này khỏi tất cả variants
-  variants.value.forEach(v => {
-    delete v.variant_attributes[keyToRemove]
-  })
-}
-
-const syncVariantsKeys = () => {
-  variants.value.forEach(v => {
-    attributeKeys.value.forEach(key => {
-      if (key && v.variant_attributes[key] === undefined) {
-        v.variant_attributes[key] = ''
-      }
-    })
-  })
-}
-
-const onAttributeKeyChange = (index) => {
-  const selectedKey = attributeKeys.value[index]
-  const isDuplicate = attributeKeys.value.some((key, i) => key === selectedKey && i !== index)
-  
-  if (isDuplicate && selectedKey) {
-    Swal.fire('Cảnh báo', `Thuộc tính "${selectedKey}" đã được chọn!`, 'warning')
-    attributeKeys.value[index] = '' // reset
-    return
-  }
-  syncVariantsKeys()
-}
 
 // Map dữ liệu khi edit
 watch(
@@ -357,17 +286,11 @@ watch(
       }
 
       if (val.variants && val.variants.length) {
-        // Lấy tất cả các keys từ variant đầu tiên (giả sử chúng giống nhau)
-        const firstVariantAttrs = val.variants[0].variant_attributes || {}
-        attributeKeys.value = Object.keys(firstVariantAttrs)
-        if (attributeKeys.value.length === 0) {
-            attributeKeys.value = ['Màu sắc', 'Kích thước']
-        }
+        attributeKeys.value = ['Màu', 'Size']
 
         variants.value = val.variants.map(v => ({
           variant_attributes: v.variant_attributes || createEmptyAttributes(),
           quantity: v.quantity ?? 0,
-          additional_price: v.additional_price ?? 0,
           sku: v.sku || ''
         }))
       } else {

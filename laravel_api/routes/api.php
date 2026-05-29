@@ -18,21 +18,6 @@ use App\Http\Controllers\User\OrderUserController;
 use App\Http\Controllers\Admin\CouponController;
 use Illuminate\Support\Facades\DB;
 
-// Public: Lấy danh sách mã khuyến mãi đang active để hiển thị trên popup chào mừng
-Route::get('/coupons/featured', function () {
-    $now = \Carbon\Carbon::now();
-    $coupons = \App\Models\Coupon::where('status', 'active')
-        ->where('start_date', '<=', $now)
-        ->where('end_date',   '>=', $now)
-        ->where(function ($q) {
-            $q->whereNull('usage_limit')
-              ->orWhereRaw('used_count < usage_limit');
-        })
-        ->orderBy('discount_value', 'desc')
-        ->get(['id', 'code', 'description', 'discount_type', 'discount_value',
-               'min_order_value', 'max_discount', 'end_date', 'usage_limit', 'used_count']);
-    return response()->json(['status' => 'success', 'data' => $coupons]);
-});
 
 Route::get('/captcha', [AuthController::class, 'getCaptcha']);
 Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:5,1');
@@ -108,6 +93,9 @@ Route::get('/products/{slug}', [ProductDetailsController::class, 'show']);//chi 
 
 // tìm kiếm
 Route::get('/search', [SearchController::class, 'getAll']);
+
+// liên hệ
+Route::post('/contact', [\App\Http\Controllers\User\ContactController::class, 'submit']);
 
 // tài khoản khách hàng - CHỈ dành cho người đã đăng nhập (Thông tin nhạy cảm)
 Route::middleware('auth:sanctum')->group(function () {

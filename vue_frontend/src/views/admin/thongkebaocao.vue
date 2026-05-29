@@ -175,10 +175,11 @@
                 <div class="alert-icon"><i class="fas fa-exclamation-triangle"></i></div>
                 <div class="alert-content">
                   <h4>Sắp hết hàng</h4>
-                  <p>Có {{ stats.lowStock.length }} sản phẩm sắp hết trong kho</p>
+                  <p>Có {{ stats.lowStock.length }} phân loại hàng sắp hết trong kho</p>
                   <ul class="mini-stock-list">
-                    <li v-for="item in stats.lowStock.slice(0, 3)" :key="'stock-'+item.id">
-                      {{ item.name }} (Còn {{ item.total_stock }})
+                    <li v-for="item in stats.lowStock" :key="'stock-'+item.id">
+                      <span class="item-name">{{ item.name }}</span>
+                      <span class="item-stock">Còn {{ item.total_stock }}</span>
                     </li>
                   </ul>
                 </div>
@@ -927,24 +928,52 @@ tr:hover td {
 .stock-alert.success .alert-icon { color: #16a34a; }
 
 .alert-content h4 {
-    font-size: 14px;
+    font-size: 16px;
     font-weight: 700;
-    margin: 0 0 4px 0;
-    color: #1e293b;
+    margin: 0 0 6px 0;
+    color: #b45309;
 }
 
 .alert-content p {
-    font-size: 12px;
+    font-size: 13px;
     color: #64748b;
     margin: 0;
+    font-weight: 500;
 }
 
 .mini-stock-list {
     list-style: none;
     padding: 0;
-    margin: 8px 0 0 0;
-    font-size: 11px;
+    margin: 12px 0 0 0;
+    font-size: 13px;
     color: #92400e;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.mini-stock-list li {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(217, 119, 6, 0.1);
+    padding: 8px 12px;
+    border-radius: 6px;
+    border: 1px solid rgba(217, 119, 6, 0.2);
+}
+
+.mini-stock-list .item-name {
+    font-weight: 600;
+    color: #b45309;
+}
+
+.mini-stock-list .item-stock {
+    background: #ef4444;
+    color: white;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 700;
 }
 
 .recent-orders-timeline {

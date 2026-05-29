@@ -301,6 +301,14 @@ const getProductImage = (product) => {
   return 'https://placehold.co/300x300?text=No+Image'
 }
 
+const extractAttribute = (v, keys) => {
+  if (!v || !v.variant_attributes) return null;
+  for (const key of keys) {
+    if (v.variant_attributes[key]) return v.variant_attributes[key];
+  }
+  return null;
+};
+
 onMounted(() => {
   fetchProducts(1);
 });
@@ -332,29 +340,30 @@ const openQuickView = async (product) => {
     let detail = res.data.product || res.data
 
     if (detail && detail.variants && detail.variants.length) {
-      const sizeMap = new Map()
+      const sizeSet = new Set()
       const colorMap = new Map()
 
       detail.variants.forEach((v, index) => {
-        if (v.size && !sizeMap.has(v.size)) {
-          sizeMap.set(v.size, {
-            id: 'size_' + (index + 1),
-            size: v.size,
-            quantity: v.quantity ?? 0,
-          })
-        }
-        const colorKey = v.color_name || v.color_code
-        if (colorKey && !colorMap.has(colorKey)) {
-          colorMap.set(colorKey, {
+        const sVal = extractAttribute(v, ['Size', 'size', 'Kích thước']);
+        if (sVal) sizeSet.add(sVal);
+
+        const cVal = extractAttribute(v, ['Màu', 'Màu sắc', 'Color', 'color']);
+        if (cVal && !colorMap.has(cVal)) {
+          const colorMapCodes = {
+            'Đen': '#000000', 'Trắng': '#FFFFFF', 'Đỏ': '#FF0000', 'Xanh': '#0000FF',
+            'Vàng': '#FFFF00', 'Xám': '#808080', 'Hồng': '#FFC0CB', 'Cam': '#FFA500'
+          };
+          colorMap.set(cVal, {
             id: 'color_' + (index + 1),
-            color_name: v.color_name || '',
-            color_code: v.color_code || '#000000',
+            color_name: cVal,
+            color_code: colorMapCodes[cVal] || '#EEEEEE',
           })
         }
       })
+
       detail = {
         ...detail,
-        sizes: Array.from(sizeMap.values()),
+        sizes: Array.from(sizeSet).map((s, i) => ({ id: 'size_' + i, size: s })),
         colors: Array.from(colorMap.values()),
       }
     }
@@ -398,9 +407,11 @@ const getAvailableStock = (p, size, color) => {
   if (!p) return null
   if (p.variants && p.variants.length) {
     const variant = p.variants.find(v => {
-      const sameSize = !size || v.size === size
-      const sameColor = !color || v.color_name === color || v.color_code === color
-      return sameSize && sameColor
+      const vSize = extractAttribute(v, ['Size', 'size', 'Kích thước']);
+      const vColor = extractAttribute(v, ['Màu', 'Màu sắc', 'Color', 'color']);
+      const sameSize = !size || vSize === size;
+      const sameColor = !color || vColor === color;
+      return sameSize && sameColor;
     })
     if (!variant) return 0
     return Number(variant.quantity ?? 0)
@@ -414,12 +425,12 @@ const getAvailableStock = (p, size, color) => {
 const addQuickToCart = async () => {
   if (!quickViewProduct.value) return
   const p = quickViewProduct.value
-  const hasSizeOptions = (p.sizes && p.sizes.length) || (p.variants && p.variants.some((v) => v.size))
+  const hasSizeOptions = (p.sizes && p.sizes.length) > 0;
   if (hasSizeOptions && !selectedSize.value) {
     showToast('Vui lòng chọn kích thước!')
     return
   }
-  const hasColorOptions = (p.colors && p.colors.length) || (p.variants && p.variants.some((v) => v.color_name || v.color_code))
+  const hasColorOptions = (p.colors && p.colors.length) > 0;
   if (hasColorOptions && !selectedColor.value) {
     showToast('Vui lòng chọn màu sắc!')
     return
@@ -443,8 +454,10 @@ const addQuickToCart = async () => {
     const payload = {
       product_id: p.id,
       quantity: quantity.value,
-      size: selectedSize.value || null,
-      color: selectedColor.value || null,
+      attributes: {
+        'Size': selectedSize.value,
+        'Màu': selectedColor.value
+      },
       session_id: sessionId
     }
     const config = { headers: {} }
