@@ -19,6 +19,7 @@ use Exception;
 use Mews\Captcha\Facades\Captcha;
 use Laravel\Sanctum\PersonalAccessToken;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Cache;
 
 class AuthController extends Controller
 {
@@ -367,9 +368,23 @@ class AuthController extends Controller
 
     public function handleFacebookCallback()
     {
+        // [CƠ CHẾ CHỐNG DOUBLE REQUEST]
+        // Trình duyệt hoặc nền tảng thứ 3 đôi khi tự động "prefetch" (tải trước) URL callback khiến code bị dùng 2 lần.
+        $code = request()->query('code');
+        if ($code && Cache::has('fb_callback_' . $code)) {
+            return redirect(Cache::get('fb_callback_' . $code));
+        }
+
         try {
             $facebookUser = Socialite::driver('facebook')->stateless()->user();
-            return $this->handleSocialCallback($facebookUser, 'facebook');
+            $response = $this->handleSocialCallback($facebookUser, 'facebook');
+            
+            // Lưu kết quả thành công vào Cache trong 5 phút để lỡ request thứ 2 đến, nó lấy luôn kết quả này
+            if ($code) {
+                Cache::put('fb_callback_' . $code, $response->getTargetUrl(), now()->addMinutes(5));
+            }
+            
+            return $response;
         } catch (\Exception $e) {
             Log::error('Facebook login error: ' . $e->getMessage());
             $frontendUrl = env('FRONTEND_URL', url('/')) . '/login';
