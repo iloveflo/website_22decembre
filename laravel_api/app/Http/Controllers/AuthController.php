@@ -348,7 +348,7 @@ class AuthController extends Controller
         try {
             $googleUser = Socialite::driver('google')->stateless()->user();
             return $this->handleSocialCallback($googleUser, 'google');
-        } catch (Exception $e) {
+        } catch (\Throwable $e) {
             Log::error('Google login error: ' . $e->getMessage());
             // Redirect về trang login của Vue kèm thông báo lỗi trên URL
             $frontendUrl = env('FRONTEND_URL', url('/')) . '/login';
@@ -385,7 +385,7 @@ class AuthController extends Controller
             }
             
             return $response;
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Log::error('Facebook login error: ' . $e->getMessage());
             $frontendUrl = env('FRONTEND_URL', url('/')) . '/login';
             // Ghép thêm thông báo lỗi thật để dễ dàng gỡ lỗi
@@ -463,23 +463,26 @@ class AuthController extends Controller
         }
 
         // TRƯỜNG HỢP 2: Chưa đăng nhập bằng MXH này, nhưng Email đã tồn tại trong hệ thống
-        // (Ví dụ: Đã đăng ký bằng tay, giờ muốn login bằng Google cùng email đó)
-        $existingUserByEmail = User::where('email', $socialUser->getEmail())->first();
+        $email = $socialUser->getEmail();
+        
+        if ($email) {
+            $existingUserByEmail = User::where('email', $email)->first();
 
-        if ($existingUserByEmail) {
-            // Cập nhật thêm ID của mạng xã hội vào user cũ
-            $existingUserByEmail->update([
-                $providerIdField => $socialUser->getId(),
-                'email_verified_at' => now(), // Tin tưởng email từ Google/FB là đã xác thực
-            ]);
-            return $existingUserByEmail;
+            if ($existingUserByEmail) {
+                // Cập nhật thêm ID của mạng xã hội vào user cũ
+                $existingUserByEmail->update([
+                    $providerIdField => $socialUser->getId(),
+                    'email_verified_at' => now(), // Tin tưởng email từ Google/FB là đã xác thực
+                ]);
+                return $existingUserByEmail;
+            }
         }
 
         // TRƯỜNG HỢP 3: User hoàn toàn mới -> Tạo mới
 
         // Tạo username tự động (vì Model của bạn yêu cầu username)
         // Logic: Lấy phần trước @ của email + số ngẫu nhiên để tránh trùng
-        $baseUsername = explode('@', $socialUser->getEmail())[0];
+        $baseUsername = $email ? explode('@', $email)[0] : $provider . $socialUser->getId();
         $newUsername = $baseUsername . rand(1000, 9999);
 
         // Kiểm tra xem username đã tồn tại chưa, nếu có thì random lại (đơn giản hóa)
@@ -487,9 +490,12 @@ class AuthController extends Controller
             $newUsername = $baseUsername . rand(1000, 9999);
         }
 
+        // Nếu email null (do FB không cung cấp), tạo một email ảo để tránh lỗi Database
+        $safeEmail = $email ?: $socialUser->getId() . '@' . $provider . '.com';
+
         // Tạo user mới
         $newUser = User::create([
-            'email' => $socialUser->getEmail(),
+            'email' => $safeEmail,
             'full_name' => $socialUser->getName() ?? $newUsername, // Google/FB có thể trả về null name
             'username' => $newUsername,
             'password' => Hash::make(Str::random(16)), // Tạo mật khẩu ngẫu nhiên bảo mật
