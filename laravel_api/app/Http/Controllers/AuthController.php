@@ -370,8 +370,8 @@ class AuthController extends Controller
     {
         $code = request()->query('code');
         
-        // Ghi log ra file tĩnh để dễ debug trên Render
-        $logPath = public_path('fb_log.txt');
+        // Ghi log ra file tĩnh để dễ debug trên Render (Lưu vào thư mục storage vì public không có quyền ghi)
+        $logPath = storage_path('logs/fb_log.txt');
         $time = now()->toDateTimeString();
         $codeSnippet = $code ? substr($code, 0, 15) . '...' : 'NULL';
         file_put_contents($logPath, "[$time] HIT callback. Code: $codeSnippet\n", FILE_APPEND);
