@@ -368,27 +368,36 @@ class AuthController extends Controller
 
     public function handleFacebookCallback()
     {
-        // [CƠ CHẾ CHỐNG DOUBLE REQUEST]
-        // Trình duyệt hoặc nền tảng thứ 3 đôi khi tự động "prefetch" (tải trước) URL callback khiến code bị dùng 2 lần.
         $code = request()->query('code');
-        if ($code && Cache::has('fb_callback_' . $code)) {
-            return redirect(Cache::get('fb_callback_' . $code));
+        
+        // Ghi log ra file tĩnh để dễ debug trên Render
+        $logPath = public_path('fb_log.txt');
+        $time = now()->toDateTimeString();
+        $codeSnippet = $code ? substr($code, 0, 15) . '...' : 'NULL';
+        file_put_contents($logPath, "[$time] HIT callback. Code: $codeSnippet\n", FILE_APPEND);
+
+        // Dùng file tĩnh để làm Cache thay vì dựa vào Laravel Cache (phòng trường hợp cấu hình Cache bị lỗi hoặc là array)
+        $cacheFile = storage_path('framework/cache/fb_' . md5($code) . '.txt');
+        
+        if ($code && file_exists($cacheFile)) {
+            file_put_contents($logPath, "[$time] HIT CACHE! Chuyển hướng ngay.\n", FILE_APPEND);
+            return redirect(file_get_contents($cacheFile));
         }
 
         try {
             $facebookUser = Socialite::driver('facebook')->stateless()->user();
             $response = $this->handleSocialCallback($facebookUser, 'facebook');
             
-            // Lưu kết quả thành công vào Cache trong 5 phút để lỡ request thứ 2 đến, nó lấy luôn kết quả này
             if ($code) {
-                Cache::put('fb_callback_' . $code, $response->getTargetUrl(), now()->addMinutes(5));
+                file_put_contents($cacheFile, $response->getTargetUrl());
+                file_put_contents($logPath, "[$time] SUCCESS! Đã ghi file cache.\n", FILE_APPEND);
             }
             
             return $response;
         } catch (\Throwable $e) {
+            file_put_contents($logPath, "[$time] ERROR: " . $e->getMessage() . "\n", FILE_APPEND);
             Log::error('Facebook login error: ' . $e->getMessage());
             $frontendUrl = env('FRONTEND_URL', url('/')) . '/login';
-            // Ghép thêm thông báo lỗi thật để dễ dàng gỡ lỗi
             return redirect($frontendUrl . '?error=' . urlencode('Đăng nhập Facebook thất bại: ' . $e->getMessage()));
         }
     }
