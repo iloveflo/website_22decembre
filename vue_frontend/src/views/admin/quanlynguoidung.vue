@@ -39,7 +39,7 @@
                 </div>
                 <div class="field-item">
                   <label>Số điện thoại</label>
-                  <input type="text" v-model="selectedUser.phone" placeholder="Nhập số điện thoại"/>
+                  <input type="text" v-model="selectedUser.phone" placeholder="Nhập số điện thoại (10 số)" pattern="0[0-9]{9}" title="Số điện thoại phải bắt đầu bằng số 0 và bao gồm đúng 10 chữ số"/>
                 </div>
                 <div class="field-item">
                   <label>Địa chỉ thường trú</label>
@@ -172,7 +172,7 @@
                 </div>
                 <div class="form-field">
                   <label>Email</label>
-                  <input type="email" v-model="newAdmin.email" required placeholder="Địa chỉ email"/>
+                  <input type="email" v-model="newAdmin.email" required placeholder="Địa chỉ email" pattern="[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$" title="Vui lòng nhập đúng định dạng email"/>
                 </div>
                 <div class="form-field">
                   <label>Họ và tên</label>
@@ -180,7 +180,7 @@
                 </div>
                 <div class="form-field">
                   <label>Số điện thoại</label>
-                  <input type="text" v-model="newAdmin.phone" placeholder="VD: 0912345678"/>
+                  <input type="text" v-model="newAdmin.phone" required placeholder="VD: 0912345678 (10 số)" pattern="0[0-9]{9}" title="Số điện thoại phải bắt đầu bằng số 0 và bao gồm đúng 10 chữ số"/>
                 </div>
                 <div class="form-field span-2">
                   <label>Địa chỉ</label>
@@ -472,8 +472,8 @@ export default {
       if (!selectedUser.value.phone?.trim()) {
         return showToast("Phone không được để trống", "error");
       }
-      if (!/^[0-9]{10}$/.test(selectedUser.value.phone)) {
-        return showToast("Phone phải gồm đúng 10 chữ số", "error");
+      if (!/^0[0-9]{9}$/.test(selectedUser.value.phone)) {
+        return showToast("Phone phải bắt đầu bằng số 0 và gồm đúng 10 chữ số", "error");
       }
       if (!selectedUser.value.address?.trim()) {
         return showToast("Address không được để trống", "error");
@@ -567,8 +567,8 @@ export default {
         return showToast("Số điện thoại không được để trống", "error");
       }
 
-      if (!/^[0-9]{10}$/.test(newAdmin.value.phone)) {
-        return showToast("Số điện thoại phải gồm đúng 10 chữ số", "error");
+      if (!/^0[0-9]{9}$/.test(newAdmin.value.phone)) {
+        return showToast("Số điện thoại phải bắt đầu bằng số 0 và gồm đúng 10 chữ số", "error");
       }
 
       if (!newAdmin.value.address?.trim()) {

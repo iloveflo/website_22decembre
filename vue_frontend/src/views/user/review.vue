@@ -14,6 +14,24 @@
         </div>
     </div>
 
+    <div v-if="isGuestVerifyRequired" class="modal-overlay">
+        <div class="modal-content">
+            <div class="success-icon" style="color: #A08B7A;">🔒</div>
+            <h3>XÁC NHẬN ĐƠN HÀNG</h3>
+            <p>Vui lòng nhập Email hoặc Số điện thoại lúc mua hàng để tiếp tục.</p>
+            <input 
+                v-model="guestInput" 
+                class="comment-input" 
+                placeholder="Ví dụ: khachhang@gmail.com hoặc 0912345678" 
+                style="margin-bottom: 15px; text-align: center;"
+            />
+            
+            <div class="modal-actions">
+                <button @click="verifyGuestOrder" class="btn-home">Xác Nhận</button>
+            </div>
+        </div>
+    </div>
+
     <div v-else-if="order" class="content-wrapper">
       
       <div class="header">
@@ -85,24 +103,32 @@ const order = ref(null);
 const reviews = ref([]);
 const isSubmitting = ref(false);
 const isReviewed = ref(false); // Biến kiểm tra trạng thái
+const isGuestVerifyRequired = ref(false);
+const guestInput = ref('');
+const verifiedGuestParams = ref({}); // Lưu lại email/phone để gửi lúc submit
 
 const getRatingText = (star) => {
     const texts = { 1: 'TỆ', 2: 'KHÔNG TỐT', 3: 'BÌNH THƯỜNG', 4: 'HÀI LÒNG', 5: 'TUYỆT VỜI' };
     return texts[star] || '';
 };
 
-onMounted(async () => {
+const fetchReviewInfo = async (params = {}) => {
   try {
-    const res = await axios.get(`/orders/${route.params.order_code}/review-info`);
+    // Ưu tiên params truyền vào (khi khách nhập form), nếu không thì lấy từ URL query (nếu gửi từ mail)
+    const requestParams = Object.keys(params).length > 0 ? params : {
+        email: route.query.email,
+        phone: route.query.phone
+    };
+
+    const res = await axios.get(`/orders/${route.params.order_code}/review-info`, { params: requestParams });
     order.value = res.data;
 
-    // 1. KIỂM TRA LUÔN KHI VỪA TẢI XONG
     if (res.data.is_reviewed === true) {
         isReviewed.value = true;
-        return; // Dừng, không cần map dữ liệu form làm gì
+        isGuestVerifyRequired.value = false; // Đóng form xác nhận
+        return;
     }
 
-    // Nếu chưa đánh giá thì mới map dữ liệu ra form
     reviews.value = res.data.order_items.map(item => ({
       product_id: item.product_id,
       product_name: item.product_name,
@@ -112,13 +138,53 @@ onMounted(async () => {
       rating: 5,
       comment: ''
     }));
-  } catch (e) { 
-    console.error(e);
-    // Nếu API trả lỗi 404 hoặc lỗi khác thì đẩy về trang chủ hoặc báo lỗi
-    alert("Không tìm thấy đơn hàng hoặc đơn hàng không tồn tại.");
-    router.push('/');
+
+    // Nếu thành công (không bị 403), ẩn form xác nhận và lưu lại param
+    isGuestVerifyRequired.value = false;
+    verifiedGuestParams.value = requestParams;
+
+  } catch (e) {
+    const requestParams = Object.keys(params).length > 0 ? params : {
+        email: route.query.email,
+        phone: route.query.phone
+    };
+    
+    if (e.response && e.response.status === 403) {
+        // Lỗi 403 từ backend -> Yêu cầu xác thực khách vãng lai
+        isGuestVerifyRequired.value = true;
+        
+        // Nếu đã nhập thông tin rồi mà vẫn bị 403 -> Thông báo sai thông tin
+        if (requestParams.email || requestParams.phone) {
+            Swal.fire('Lỗi xác nhận', e.response?.data?.message || 'Thông tin không chính xác', 'error');
+        }
+    } else {
+        console.error(e);
+        Swal.fire({
+            icon: 'error',
+            title: 'Lỗi',
+            text: e.response?.data?.message || "Không tìm thấy đơn hàng hoặc chưa thể đánh giá."
+        }).then(() => {
+            router.push('/');
+        });
+    }
   }
+};
+
+onMounted(() => {
+    fetchReviewInfo();
 });
+
+const verifyGuestOrder = () => {
+    if (!guestInput.value.trim()) {
+        Swal.fire('Lỗi', 'Vui lòng nhập Email hoặc Số điện thoại!', 'warning');
+        return;
+    }
+    // Đoán xem người dùng nhập email hay sdt
+    const isEmail = guestInput.value.includes('@');
+    const params = isEmail ? { email: guestInput.value } : { phone: guestInput.value };
+    
+    fetchReviewInfo(params);
+};
 
 const submitReviews = async () => {
   const result = await Swal.fire({
@@ -138,6 +204,7 @@ const submitReviews = async () => {
   try {
     await axios.post('/reviews', {
       order_code: order.value.order_code,
+      ...verifiedGuestParams.value, // Gắn thêm email hoặc phone đã xác thực vào body
       reviews: reviews.value.map(r => ({
         product_id: r.product_id,
         rating: r.rating,
@@ -145,11 +212,10 @@ const submitReviews = async () => {
       }))
     });
     
-    // Đánh giá xong thì chuyển sang màn hình thông báo luôn
     isReviewed.value = true; 
     
   } catch (e) { 
-    Swal.fire('Lỗi', 'Lỗi khi gửi đánh giá, vui lòng thử lại.', 'error');
+    Swal.fire('Lỗi', e.response?.data?.message || 'Lỗi khi gửi đánh giá, vui lòng thử lại.', 'error');
   } finally {
     isSubmitting.value = false;
   }
@@ -168,7 +234,7 @@ const submitReviews = async () => {
     display: flex;
     justify-content: center;
     align-items: center;
-    z-index: 9999;
+    z-index: 1050; /* Giảm z-index xuống để SweetAlert (z-index 1060) đè lên được */
 }
 
 .modal-content {

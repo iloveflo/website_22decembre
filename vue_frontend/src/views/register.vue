@@ -5,32 +5,32 @@
     <form @submit.prevent="submitRegister" class="register-form">
       <div class="form-group">
         <label>Username</label>
-        <input type="text" v-model="form.username" placeholder="Nhập username" required />
+        <input type="text" v-model="form.username" placeholder="Nhập username" required pattern="^[a-zA-Z0-9_]+$" title="Chỉ chứa chữ cái, số, hoặc dấu gạch dưới" />
       </div>
 
       <div class="form-group">
         <label>Email</label>
-        <input type="email" v-model="form.email" placeholder="Nhập email" required />
+        <input type="email" v-model="form.email" placeholder="Nhập email" required pattern="[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$" title="Nhập địa chỉ email hợp lệ" />
       </div>
 
       <div class="form-group">
         <label>Mật khẩu</label>
-        <input type="password" v-model="form.password" placeholder="Nhập mật khẩu" required />
+        <input type="password" v-model="form.password" placeholder="Tối thiểu 8 ký tự" required minlength="8" />
       </div>
 
       <div class="form-group">
         <label>Xác nhận mật khẩu</label>
-        <input type="password" v-model="form.password_confirmation" placeholder="Nhập lại mật khẩu" required />
+        <input type="password" v-model="form.password_confirmation" placeholder="Nhập lại mật khẩu" required minlength="8" />
       </div>
 
       <div class="form-group">
         <label>Họ tên</label>
-        <input type="text" v-model="form.full_name" placeholder="Nhập họ tên" />
+        <input type="text" v-model="form.full_name" placeholder="Nhập họ tên đầy đủ" required />
       </div>
 
       <div class="form-group">
         <label>Số điện thoại</label>
-        <input type="text" v-model="form.phone" placeholder="10 chữ số" />
+        <input type="text" v-model="form.phone" placeholder="VD: 0912345678 (10 số)" required pattern="0[0-9]{9}" title="Bắt đầu bằng số 0 và bao gồm đúng 10 chữ số" />
       </div>
 
       <div class="form-group">
@@ -52,6 +52,7 @@
 import { ref } from 'vue'
 import axios from 'axios'
 import { useRouter } from 'vue-router'
+import Swal from 'sweetalert2'
 
 const router = useRouter()
 
@@ -112,19 +113,19 @@ async function submitRegister() {
   }
 
   // 6. Phone
-  // Logic này OK vì bạn cho phép nullable (có thể rỗng)
-  // Nếu có nhập thì phải đủ 10 số.
-  if (form.value.phone && !/^\d{10}$/.test(form.value.phone)) {
-    errors.value.phone = 'Phone phải gồm đúng 10 chữ số';
+  if (!form.value.phone) {
+    errors.value.phone = 'Số điện thoại không được để trống';
+  } else if (!/^0[0-9]{9}$/.test(form.value.phone)) {
+    errors.value.phone = 'Số điện thoại phải bắt đầu bằng số 0 và gồm đúng 10 chữ số';
   }
 
   if (Object.keys(errors.value).length > 0) {
-    // Lấy tất cả thông báo lỗi ra thành một mảng
     const errorMessages = Object.values(errors.value);
-    
-    // Nối chúng lại bằng dấu xuống dòng (\n) và gạch đầu dòng
-    alert('Vui lòng kiểm tra lại các lỗi sau:\n\n- ' + errorMessages.join('\n- '));
-    
+    Swal.fire({
+        icon: 'error',
+        title: 'Vui lòng kiểm tra lại',
+        html: `<ul style="text-align: left; margin-left: 20px;"><li>${errorMessages.join('</li><li>')}</li></ul>`
+    });
     return;
   }
 
@@ -141,22 +142,27 @@ async function submitRegister() {
       headers: { 'Content-Type': 'multipart/form-data' }
     })
 
-    alert('Đăng ký thành công!')
-
-    // Reset form
-    Object.keys(form.value).forEach(key => form.value[key] = '')
-
-    // ===== Chuyển hướng về trang login =====
-    router.push('/login')
+    Swal.fire({
+      icon: 'success',
+      title: 'Đăng ký thành công!',
+      text: 'Bạn có thể đăng nhập ngay bây giờ.',
+      confirmButtonText: 'Đăng nhập',
+      confirmButtonColor: '#A08B7A'
+    }).then(() => {
+      // Reset form
+      Object.keys(form.value).forEach(key => form.value[key] = '')
+      // ===== Chuyển hướng về trang login =====
+      router.push('/login')
+    });
 
   } catch (err) {
     if (err.response?.data?.errors) {
       errors.value = err.response.data.errors
       console.log('Backend errors:', errors.value)
-      alert('Username hoặc email đã tồn tại.')
+      Swal.fire('Lỗi đăng ký', 'Username hoặc email đã tồn tại, hoặc thông tin không hợp lệ.', 'error')
     } else {
       console.error(err)
-      alert('Có lỗi xảy ra, thử lại sau.')
+      Swal.fire('Lỗi hệ thống', 'Có lỗi xảy ra, thử lại sau.', 'error')
     }
   }
 }

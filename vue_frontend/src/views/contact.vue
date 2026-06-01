@@ -34,7 +34,7 @@
 
         <div class="form-row">
           <label>Email</label>
-          <input type="email" v-model="form.email" placeholder="Email của bạn" required>
+          <input type="email" v-model="form.email" placeholder="Email của bạn" required pattern="[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$" title="Vui lòng nhập đúng định dạng email">
         </div>
 
         <div class="form-row">
@@ -45,8 +45,6 @@
         <button type="submit" class="submit-btn" :disabled="loading">
           {{ loading ? 'Đang gửi...' : 'Gửi Tin Nhắn' }}
         </button>
-        
-        <p v-if="statusMessage" :class="['status-message', statusClass]">{{ statusMessage }}</p>
       </form>
     </section>
 
@@ -56,6 +54,7 @@
 <script setup>
 import { reactive, ref } from 'vue';
 import axios from 'axios';
+import Swal from 'sweetalert2';
 
 const form = reactive({
   name: '',
@@ -64,28 +63,32 @@ const form = reactive({
 });
 
 const loading = ref(false);
-const statusMessage = ref('');
-const statusClass = ref('');
 
 const submitForm = async () => {
+  if (!form.name.trim() || !form.message.trim()) {
+    Swal.fire('Cảnh báo', 'Vui lòng không để trống thông tin.', 'warning');
+    return;
+  }
+  const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+  if (!emailRegex.test(form.email)) {
+    Swal.fire('Cảnh báo', 'Vui lòng nhập địa chỉ email hợp lệ.', 'warning');
+    return;
+  }
+
   loading.value = true;
-  statusMessage.value = '';
   
   try {
     const response = await axios.post('/contact', form);
     if (response.data.status === 'success') {
-      statusClass.value = 'success';
-      statusMessage.value = response.data.message;
+      Swal.fire('Thành công', response.data.message || 'Tin nhắn của bạn đã được gửi đi.', 'success');
       form.name = '';
       form.email = '';
       form.message = '';
     } else {
-      statusClass.value = 'error';
-      statusMessage.value = response.data.message || 'Có lỗi xảy ra.';
+      Swal.fire('Lỗi', response.data.message || 'Có lỗi xảy ra.', 'error');
     }
   } catch (error) {
-    statusClass.value = 'error';
-    statusMessage.value = 'Có lỗi kết nối. Vui lòng thử lại sau.';
+    Swal.fire('Lỗi kết nối', 'Vui lòng thử lại sau.', 'error');
   } finally {
     loading.value = false;
   }
@@ -231,11 +234,5 @@ textarea {
   cursor: not-allowed;
 }
 
-.status-message {
-  margin-top: 15px;
-  font-size: 14px;
-  font-weight: 600;
-}
-.status-message.success { color: #16a34a; }
-.status-message.error { color: #dc2626; }
+
 </style>

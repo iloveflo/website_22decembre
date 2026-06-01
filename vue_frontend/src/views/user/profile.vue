@@ -50,6 +50,7 @@
                 type="text" 
                 v-model="user.full_name" 
                 class="form-control"
+                required
               >
             </div>
           </div>
@@ -75,8 +76,11 @@
                 :disabled="!isPhoneEditable"
                 class="form-control"
                 maxlength="10"
-                placeholder="Nhập 10 chữ số"
+                placeholder="VD: 0912345678 (10 số)"
                 @input="user.phone = user.phone.replace(/[^0-9]/g, '')"
+                required
+                pattern="0[0-9]{9}"
+                title="Số điện thoại phải bắt đầu bằng số 0 và gồm đúng 10 chữ số"
               >
               <a 
                 href="#" 
@@ -98,6 +102,7 @@
                 :disabled="!isAddressEditable"
                 class="form-control"
                 placeholder="Nhập địa chỉ nhận hàng"
+                required
               >
               <a 
                 href="#" 
@@ -212,10 +217,20 @@ export default {
 
     // 4. Lưu thông tin
     async saveProfile() {
-      // Validate Phone Client-side
-      const phoneRegex = /^\d{10}$/;
+      // Validate Client-side
+      if (!this.user.full_name?.trim()) {
+        Swal.fire('Cảnh báo', 'Họ tên không được để trống!', 'warning');
+        return;
+      }
+      
+      const phoneRegex = /^0[0-9]{9}$/;
       if (!this.user.phone || !phoneRegex.test(this.user.phone)) {
-        Swal.fire('Cảnh báo', 'Số điện thoại không hợp lệ! Vui lòng nhập đúng 10 chữ số.', 'warning');
+        Swal.fire('Cảnh báo', 'Số điện thoại phải bắt đầu bằng số 0 và gồm đúng 10 chữ số.', 'warning');
+        return;
+      }
+
+      if (!this.user.address?.trim()) {
+        Swal.fire('Cảnh báo', 'Địa chỉ không được để trống!', 'warning');
         return;
       }
 

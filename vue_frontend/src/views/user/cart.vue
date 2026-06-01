@@ -162,12 +162,12 @@
 
               <div class="form-group">
                 <label>Email:</label>
-                <input v-model="form.email" type="email" required placeholder="Nhập email">
+                <input v-model="form.email" type="email" required placeholder="Nhập email" pattern="[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$" title="Vui lòng nhập đúng định dạng email">
               </div>
 
               <div class="form-group">
                 <label>Số điện thoại:</label>
-                <input v-model="form.phone" type="text" required placeholder="Nhập số điện thoại">
+                <input v-model="form.phone" type="text" required placeholder="Nhập số điện thoại (10 số)" pattern="0[0-9]{9}" title="Số điện thoại phải bắt đầu bằng số 0 và bao gồm đúng 10 chữ số">
               </div>
 
               <div class="form-group">
@@ -577,6 +577,20 @@ const handleCheckoutClick = async () => {
 const submitOrder = async () => {
   if (cartItems.value.length === 0) {
     showNotification('Giỏ hàng trống!');
+    return;
+  }
+
+  // Validate Email Regex
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(form.value.email)) {
+    showNotification('Vui lòng nhập địa chỉ email hợp lệ!');
+    return;
+  }
+
+  // Validate Phone (Exactly 10 digits starting with 0)
+  const phoneRegex = /^0\d{9}$/;
+  if (!phoneRegex.test(form.value.phone)) {
+    showNotification('Số điện thoại không hợp lệ! Vui lòng nhập đúng 10 số (Bắt đầu bằng số 0).');
     return;
   }
 

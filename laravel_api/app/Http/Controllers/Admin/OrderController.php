@@ -180,13 +180,34 @@ class OrderController extends Controller
     }
 
 
-    // 2. THÊM MỚI: Lấy thông tin để hiện lên trang Review
-    public function getReviewInfo($order_code)
+    // 2. THÊM MỚI: Lấy thông tin để hiện lên trang Review (Đã bảo mật)
+    public function getReviewInfo(Request $request, $order_code)
     {
-        // Lấy đơn hàng kèm theo sản phẩm (orderItems)
-        $order = Order::with('orderItems')
-            ->where('order_code', $order_code)
-            ->firstOrFail();
+        $user = $request->user('sanctum');
+        
+        $order = Order::with('orderItems')->where('order_code', $order_code)->first();
+
+        if (!$order) {
+            return response()->json(['message' => 'Không tìm thấy đơn hàng.'], 404);
+        }
+
+        // --- BẢO MẬT: Kiểm tra chủ sở hữu đơn hàng ---
+        $email = $request->input('email');
+        $phone = $request->input('phone');
+        
+        $isOwner = false;
+        if ($user && $order->user_id === $user->id) $isOwner = true;
+        if ($email && $order->email === $email) $isOwner = true;
+        if ($phone && $order->phone === $phone) $isOwner = true;
+
+        if (!$isOwner) {
+            // Nếu khách chưa truyền email/phone (VD: Lần load trang đầu tiên của khách vãng lai) -> Báo 403 để frontend hiện Form
+            if (!$email && !$phone) {
+                return response()->json(['message' => 'Vui lòng cung cấp email hoặc số điện thoại để xác thực.'], 403);
+            }
+            // Nếu đã nhập nhưng sai thông tin
+            return response()->json(['message' => 'Email hoặc Số điện thoại không khớp với đơn hàng.'], 403);
+        }
 
         // 1. Chỉ cho phép review đơn đã hoàn thành
         if ($order->order_status !== 'completed') {
@@ -194,27 +215,49 @@ class OrderController extends Controller
         }
 
         // 2. LOGIC KIỂM TRA ĐÃ REVIEW CHƯA
-        // Kiểm tra trong bảng reviews xem có dòng nào chứa order_id này không
-        // Hàm exists() trả về true/false rất nhanh
         $isReviewed = Review::where('order_id', $order->id)->exists();
-
-        // 3. Gắn thêm cờ 'is_reviewed' vào kết quả trả về
-        // Laravel cho phép gán thuộc tính động vào Model instance trước khi trả về JSON
         $order->is_reviewed = $isReviewed;
 
         return response()->json($order);
     }
 
-    // 3. THÊM MỚI: Lưu đánh giá (Thay thế ReviewController)
+    // 3. THÊM MỚI: Lưu đánh giá (Đã bảo mật)
     public function storeReviews(Request $request)
     {
         $request->validate([
             'order_code' => 'required|exists:orders,order_code',
             'reviews' => 'required|array',
             'reviews.*.rating' => 'required|integer|min:1|max:5',
+            'email' => 'nullable|email',
+            'phone' => 'nullable|string', 
         ]);
 
-        $order = Order::where('order_code', $request->order_code)->firstOrFail();
+        $user = $request->user('sanctum');
+        $order = Order::where('order_code', $request->order_code)->first();
+
+        if (!$order) {
+            return response()->json(['message' => 'Không tìm thấy đơn hàng.'], 404);
+        }
+
+        // --- BẢO MẬT: Kiểm tra chủ sở hữu đơn hàng ---
+        $email = $request->input('email');
+        $phone = $request->input('phone');
+        
+        $isOwner = false;
+        if ($user && $order->user_id === $user->id) $isOwner = true;
+        if ($email && $order->email === $email) $isOwner = true;
+        if ($phone && $order->phone === $phone) $isOwner = true;
+
+        if (!$isOwner) {
+            if (!$email && !$phone) {
+                return response()->json(['message' => 'Vui lòng cung cấp email hoặc số điện thoại để xác nhận.'], 403);
+            }
+            return response()->json(['message' => 'Email hoặc Số điện thoại không khớp với đơn hàng.'], 403);
+        }
+        
+        if ($order->order_status !== 'completed') {
+             return response()->json(['message' => 'Đơn chưa hoàn thành, chưa thể đánh giá.'], 400);
+        }
 
         // Check xem đã đánh giá chưa (tránh spam)
         if (Review::where('order_id', $order->id)->exists()) {
@@ -222,7 +265,6 @@ class OrderController extends Controller
         }
 
         foreach ($request->reviews as $item) {
-            // Check sản phẩm có trong đơn không
             $valid = OrderItem::where('order_id', $order->id)
                               ->where('product_id', $item['product_id'])->exists();
             

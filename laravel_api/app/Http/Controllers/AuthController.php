@@ -348,7 +348,7 @@ class AuthController extends Controller
             $googleUser = Socialite::driver('google')->stateless()->user();
             return $this->handleSocialCallback($googleUser, 'google');
         } catch (Exception $e) {
-            dd($e->getMessage());
+            Log::error('Google login error: ' . $e->getMessage());
             // Redirect về trang login của Vue kèm thông báo lỗi trên URL
             $frontendUrl = env('FRONTEND_URL', url('/')) . '/login';
             return redirect($frontendUrl . '?error=' . urlencode('Đăng nhập Google thất bại'));
@@ -372,7 +372,7 @@ class AuthController extends Controller
             $facebookUser = Socialite::driver('facebook')->stateless()->user();
             return $this->handleSocialCallback($facebookUser, 'facebook');
         } catch (Exception $e) {
-            dd($e->getMessage());
+            Log::error('Facebook login error: ' . $e->getMessage());
             $frontendUrl = env('FRONTEND_URL', url('/')) . '/login';
             return redirect($frontendUrl . '?error=' . urlencode('Đăng nhập Facebook thất bại'));
         }
