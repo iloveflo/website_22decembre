@@ -365,16 +365,16 @@ class AuthController extends Controller
         return Socialite::driver('facebook')->redirect();
     }
 
-    // Xử lý khi Facebook gọi lại (Callback)
     public function handleFacebookCallback()
     {
         try {
             $facebookUser = Socialite::driver('facebook')->stateless()->user();
             return $this->handleSocialCallback($facebookUser, 'facebook');
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             Log::error('Facebook login error: ' . $e->getMessage());
             $frontendUrl = env('FRONTEND_URL', url('/')) . '/login';
-            return redirect($frontendUrl . '?error=' . urlencode('Đăng nhập Facebook thất bại'));
+            // Ghép thêm thông báo lỗi thật để dễ dàng gỡ lỗi
+            return redirect($frontendUrl . '?error=' . urlencode('Đăng nhập Facebook thất bại: ' . $e->getMessage()));
         }
     }
 
