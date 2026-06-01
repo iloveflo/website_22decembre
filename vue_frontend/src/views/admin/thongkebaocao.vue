@@ -18,9 +18,9 @@
               <option value="custom">Tùy chọn...</option>
             </select>
             <div v-if="period === 'custom'" class="custom-range">
-              <input type="date" v-model="customStartDate" @change="fetchData">
+              <input type="date" v-model="customStartDate" @change="fetchData" :max="todayDate">
               <span>đến</span>
-              <input type="date" v-model="customEndDate" @change="fetchData">
+              <input type="date" v-model="customEndDate" @change="fetchData" :max="todayDate">
             </div>
           </div>
         </div>
@@ -261,6 +261,7 @@
 <script setup>
 import { ref, onMounted, reactive } from 'vue';
 import axios from 'axios';
+import Swal from 'sweetalert2';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -289,8 +290,9 @@ ChartJS.register(
 
 const loading = ref(true);
 const period = ref('this_month');
-const customStartDate = ref(new Date().toISOString().substring(0, 10));
-const customEndDate = ref(new Date().toISOString().substring(0, 10));
+const todayDate = new Date().toISOString().substring(0, 10);
+const customStartDate = ref(todayDate);
+const customEndDate = ref(todayDate);
 
 // Refs for charts
 const revenueChartRef = ref(null);
@@ -397,6 +399,22 @@ const fetchData = async () => {
   try {
     const params = { period: period.value };
     if (period.value === 'custom') {
+        if (!customStartDate.value || !customEndDate.value) {
+            Swal.fire('Cảnh báo', 'Vui lòng chọn đầy đủ ngày bắt đầu và kết thúc.', 'warning');
+            loading.value = false;
+            return;
+        }
+        if (new Date(customStartDate.value) > new Date(customEndDate.value)) {
+            Swal.fire('Cảnh báo', 'Ngày kết thúc phải diễn ra sau ngày bắt đầu.', 'warning');
+            loading.value = false;
+            return;
+        }
+        if (customEndDate.value > todayDate) {
+            Swal.fire('Cảnh báo', 'Không thể thống kê dữ liệu của tương lai.', 'warning');
+            loading.value = false;
+            return;
+        }
+
         params.start_date = customStartDate.value;
         params.end_date = customEndDate.value;
     }

@@ -314,7 +314,30 @@ const removeVariantRow = (index) => {
 }
 
 const handleSubmit = async () => {
-  if (!form.value.name || !form.value.category_id) return
+  // Validate Tên sản phẩm
+  if (!form.value.name || form.value.name.trim() === '') {
+    Swal.fire('Cảnh báo', 'Vui lòng nhập tên sản phẩm!', 'warning')
+    return
+  }
+
+  // Chống XSS tên sản phẩm
+  const nameRegex = /^[a-zA-ZÀÁÂÃÈÉÊÌÍÒÓÔÕÙÚĂĐĨŨƠàáâãèéêìíòóôõùúăđĩũơƯĂẠẢẤẦẨẪẬẮẰẲẴẶẸẺẼỀỀỂưăạảấầẩẫậắằẳẵặẹẻẽềềểỄỆỈỊỌỎỐỒỔỖỘỚỜỞỠỢỤỦỨỪễệỉịọỏốồổỗộớờởỡợụủứừỮỰỲỴÝỶỸửữựỳỵỷỹ\s0-9\-_.,()&]+$/;
+  if (!nameRegex.test(form.value.name)) {
+    Swal.fire('Cảnh báo', 'Tên sản phẩm không được chứa các ký tự đặc biệt nguy hiểm!', 'warning')
+    return
+  }
+
+  // Validate Danh mục
+  if (!form.value.category_id) {
+    Swal.fire('Cảnh báo', 'Vui lòng chọn danh mục cho sản phẩm!', 'warning')
+    return
+  }
+
+  // Validate Giá
+  if (form.value.price === null || form.value.price < 0) {
+    Swal.fire('Cảnh báo', 'Giá gốc sản phẩm không hợp lệ (phải >= 0)!', 'warning')
+    return
+  }
 
   // Làm sạch attributes: bỏ các key rỗng
   const processedVariants = variants.value.map(v => {
@@ -334,6 +357,22 @@ const handleSubmit = async () => {
   const cleanVariants = processedVariants.filter(
     v => Object.keys(v.variant_attributes).length > 0 || v.quantity > 0
   )
+
+  const selectedCategory = props.categories.find(c => c.id === form.value.category_id);
+  let isAccessory = false;
+  if (selectedCategory) {
+      const parentCategory = props.categories.find(c => c.id === selectedCategory.parent_id);
+      const catName = selectedCategory.name.toLowerCase();
+      const parentName = parentCategory ? parentCategory.name.toLowerCase() : '';
+      if (catName.includes('phụ kiện') || parentName.includes('phụ kiện')) {
+          isAccessory = true;
+      }
+  }
+
+  if (!isAccessory && cleanVariants.length === 0) {
+    Swal.fire('Cảnh báo', 'Sản phẩm thuộc nhóm Quần/Áo phải có ít nhất một biến thể!', 'warning')
+    return
+  }
 
   // Kiểm tra trùng lặp biến thể
   const variantSet = new Set()

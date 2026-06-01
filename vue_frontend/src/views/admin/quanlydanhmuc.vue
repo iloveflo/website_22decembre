@@ -1,14 +1,5 @@
 <template>
   <div class="admin-content">
-    <!-- THÔNG BÁO (TOAST) -->
-    <Transition name="toast">
-      <div v-if="toast.show" class="premium-toast" :class="toast.type">
-        <div class="toast-content">
-          <div class="toast-title">{{ toast.title }}</div>
-          <div class="toast-message">{{ toast.message }}</div>
-        </div>
-      </div>
-    </Transition>
 
     <div class="page-header">
       <div class="header-main">
@@ -85,8 +76,8 @@
         <form @submit.prevent="saveCategory" class="premium-form">
           <div class="form-grid">
             <div class="form-group full-width">
-              <label>Tên danh mục</label>
-              <input v-model="form.name" type="text" class="premium-input" placeholder="Ví dụ: Đồ Nam, Phụ Kiện..." required />
+              <label>Tên danh mục <span style="color: #e74c3c">*</span></label>
+              <input v-model="form.name" type="text" class="premium-input" placeholder="Ví dụ: Đồ Nam, Phụ Kiện..." required minlength="2" />
             </div>
             
             <div class="form-group">
@@ -139,56 +130,24 @@
       </div>
     </div>
 
-    <!-- Hộp thoại xác nhận xóa (Sửa lại vị trí trung tâm) -->
-    <div v-if="showConfirmDelete" class="fixed-overlay" @click.self="showConfirmDelete = false">
-      <div class="premium-confirm-modal">
-        <h3 class="modal-title">Xác nhận xóa</h3>
-        <p class="modal-desc">
-          Bạn có chắc chắn muốn xóa vĩnh viễn danh mục <strong>{{ form.name }}</strong>? 
-          Hành động này chỉ thực hiện được nếu danh mục không có sản phẩm nào.
-        </p>
-        <div class="modal-actions">
-          <button class="btn-secondary" @click="showConfirmDelete = false">Quay lại</button>
-          <button class="btn-danger-solid" @click="executeDelete">Xác nhận xóa</button>
-        </div>
-      </div>
-    </div>
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted, computed, reactive } from 'vue'
 import axios from 'axios'
+import Swal from 'sweetalert2'
 
 const categoriesTree = ref([])
 const flatCategories = ref([])
 const loading = ref(false)
 const saving = ref(false)
 const editingId = ref(null)
-const showConfirmDelete = ref(false)
 const userRole = ref(localStorage.getItem('user_role'))
 
 const canDelete = computed(() => {
   return userRole.value === 'admin' // Chỉ admin mới có quyền xóa
 })
-
-// HỆ THỐNG THÔNG BÁO VIỆT HÓA
-const toast = reactive({
-  show: false,
-  title: '',
-  message: '',
-  type: 'success'
-})
-
-const showToast = (title, message, type = 'success') => {
-  toast.title = title
-  toast.message = message
-  toast.type = type
-  toast.show = true
-  setTimeout(() => {
-    toast.show = false
-  }, 3000)
-}
 
 const form = ref({
   name: '',
@@ -219,7 +178,7 @@ const fetchCategories = async () => {
     categoriesTree.value = treeRes.data
     flatCategories.value = flatRes.data
   } catch (e) {
-    showToast('Lỗi hệ thống', 'Không thể kết nối để lấy danh mục', 'error')
+    Swal.fire('Lỗi hệ thống', 'Không thể kết nối để lấy danh mục', 'error')
   } finally {
     loading.value = false
   }
@@ -246,8 +205,8 @@ const resetForm = () => {
 }
 
 const saveCategory = async () => {
-  if (!form.value.name) {
-    showToast('Cảnh báo', 'Vui lòng điền tên danh mục', 'error')
+  if (!form.value.name || form.value.name.trim().length < 2) {
+    Swal.fire('Cảnh báo', 'Vui lòng nhập tên danh mục (ít nhất 2 ký tự)', 'warning')
     return
   }
   
@@ -255,40 +214,53 @@ const saveCategory = async () => {
   try {
     if (editingId.value) {
       await axios.put(`/admin/categories/${editingId.value}`, form.value)
-      showToast('Thành công', 'Đã cập nhật thông tin danh mục')
+      Swal.fire('Thành công', 'Đã cập nhật thông tin danh mục', 'success')
     } else {
       await axios.post('/admin/categories', form.value)
-      showToast('Thành công', 'Đã thêm danh mục mới vào hệ thống')
+      Swal.fire('Thành công', 'Đã thêm danh mục mới vào hệ thống', 'success')
     }
     await fetchCategories()
     if (!editingId.value) resetForm()
   } catch (e) {
     const msg = e.response?.data?.message || 'Không thể lưu thay đổi'
-    showToast('Thất bại', msg, 'error')
+    Swal.fire('Thất bại', msg, 'error')
   } finally {
     saving.value = false
   }
 }
 
 const confirmDelete = () => {
-  showConfirmDelete.value = true
+  Swal.fire({
+    title: 'Xác nhận xóa',
+    html: `Bạn có chắc chắn muốn xóa vĩnh viễn danh mục <strong>${form.value.name}</strong>?<br>Hành động này chỉ thực hiện được nếu danh mục không có sản phẩm nào.`,
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#e74c3c',
+    cancelButtonColor: '#f0f0f0',
+    cancelButtonText: '<span style="color: #333">Quay lại</span>',
+    confirmButtonText: 'Xác nhận xóa'
+  }).then((result) => {
+    if (result.isConfirmed) {
+      executeDelete()
+    }
+  })
 }
 
 const executeDelete = async () => {
   if (!canDelete.value) {
-    showToast('Từ chối', 'Bạn không có quyền thực hiện hành động này', 'error')
+    Swal.fire('Từ chối', 'Bạn không có quyền thực hiện hành động này', 'error')
     return
   }
-  showConfirmDelete.value = false
+  
   saving.value = true
   try {
     await axios.delete(`/admin/categories/${editingId.value}`)
     await fetchCategories()
     resetForm()
-    showToast('Thành công', 'Đã xóa danh mục khỏi hệ thống')
+    Swal.fire('Thành công', 'Đã xóa danh mục khỏi hệ thống', 'success')
   } catch (e) {
     const msg = e.response?.data?.message || 'Danh mục đang được sử dụng, không thể xóa'
-    showToast('Thất bại', msg, 'error')
+    Swal.fire('Thất bại', msg, 'error')
   } finally {
     saving.value = false
   }
@@ -298,67 +270,6 @@ onMounted(fetchCategories)
 </script>
 
 <style scoped>
-/* FIX VỊ TRÍ MODAL */
-.fixed-overlay {
-  position: fixed;
-  top: 0; left: 0; right: 0; bottom: 0;
-  background: rgba(0, 0, 0, 0.4);
-  z-index: 1000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  backdrop-filter: blur(2px);
-}
-
-.premium-confirm-modal {
-  background: #fff;
-  padding: 40px;
-  border-radius: 12px;
-  width: 90%;
-  max-width: 480px;
-  box-shadow: 0 20px 50px rgba(0,0,0,0.15);
-  animation: modalIn 0.3s ease-out;
-}
-
-@keyframes modalIn {
-  from { transform: translateY(20px); opacity: 0; }
-  to { transform: translateY(0); opacity: 1; }
-}
-
-.modal-title { font-size: 1.5rem; font-weight: 700; margin-bottom: 15px; color: #1a1a1a; }
-.modal-desc { color: #666; line-height: 1.6; margin-bottom: 30px; font-size: 0.95rem; }
-.modal-actions { display: flex; gap: 12px; }
-.modal-actions button { flex: 1; padding: 14px; border-radius: 8px; font-weight: 600; cursor: pointer; border: none; transition: 0.2s; }
-.btn-secondary { background: #f0f0f0; color: #333; }
-.btn-secondary:hover { background: #e0e0e0; }
-.btn-danger-solid { background: #e74c3c; color: #fff; }
-.btn-danger-solid:hover { background: #c0392b; }
-
-/* THÔNG BÁO (TOAST) */
-.premium-toast {
-  position: fixed;
-  top: 30px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 2000;
-  background: #1a1a1a;
-  color: #fff;
-  border-radius: 8px;
-  padding: 14px 24px;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-  display: flex;
-  align-items: center;
-  min-width: 320px;
-}
-
-.premium-toast.error { background: #c0392b; }
-.premium-toast.success { background: #27ae60; }
-
-.toast-title { font-weight: 700; font-size: 0.9rem; margin-bottom: 2px; }
-.toast-message { font-size: 0.8rem; opacity: 0.9; }
-
-.toast-enter-active, .toast-leave-active { transition: all 0.3s ease; }
-.toast-enter-from, .toast-leave-to { transform: translate(-50%, -20px); opacity: 0; }
 
 /* BỐ CỤC TRANG */
 .admin-content {

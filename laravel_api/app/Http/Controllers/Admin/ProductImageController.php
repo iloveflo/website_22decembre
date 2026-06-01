@@ -31,7 +31,7 @@ class ProductImageController extends Controller
         $product = Product::findOrFail($productId);
 
         $request->validate([
-            'image'      => 'required|image|mimes:jpg,jpeg,png,webp|max:4096',
+            'image'      => 'required|image|mimes:jpg,jpeg,png|max:2048',
             'is_primary' => 'nullable|boolean',
         ]);
 

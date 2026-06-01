@@ -9,7 +9,7 @@
       <div class="modal-body">
         <!-- Upload -->
         <form @submit.prevent="uploadImage" class="upload-row">
-          <input type="file" @change="onFileChange" accept="image/*" />
+          <input type="file" @change="onFileChange" accept="image/png, image/jpeg" />
           <label class="checkbox">
             <input type="checkbox" v-model="isPrimaryUpload" />
             Đặt làm ảnh chính
@@ -100,7 +100,30 @@ const fetchImages = async () => {
 }
 
 const onFileChange = (e) => {
-  file.value = e.target.files[0] || null
+  const f = e.target.files[0];
+  if (!f) {
+    file.value = null;
+    return;
+  }
+  
+  // 1. Kiểm tra dung lượng (2MB = 2 * 1024 * 1024)
+  if (f.size > 2 * 1024 * 1024) {
+    Swal.fire('Lỗi', 'Dung lượng ảnh quá lớn! Vui lòng chọn ảnh dưới 2MB.', 'error');
+    e.target.value = ''; // Reset input
+    file.value = null;
+    return;
+  }
+  
+  // 2. Kiểm tra định dạng (Chỉ hỗ trợ png, jpeg)
+  const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg'];
+  if (!allowedTypes.includes(f.type)) {
+    Swal.fire('Lỗi', 'Định dạng ảnh không hợp lệ! Chỉ chấp nhận file .JPG hoặc .PNG.', 'error');
+    e.target.value = ''; // Reset input
+    file.value = null;
+    return;
+  }
+  
+  file.value = f;
 }
 
 const uploadImage = async () => {

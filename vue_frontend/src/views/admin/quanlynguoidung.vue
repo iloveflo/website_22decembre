@@ -19,7 +19,7 @@
                 <div class="avatar-actions">
                   <label class="btn-change-avatar">
                     Đổi ảnh đại diện
-                    <input type="file" @change="onFileChange" hidden/>
+                    <input type="file" @change="onFileChange" accept="image/png, image/jpeg" hidden/>
                   </label>
                 </div>
               </div>
@@ -161,7 +161,7 @@
                 <img v-if="newPreviewAvatar" :src="newPreviewAvatar" class="avatar-circle">
                 <label class="btn-select-file">
                   Chọn ảnh nhân viên
-                  <input type="file" @change="onNewFileChange" hidden/>
+                  <input type="file" @change="onNewFileChange" accept="image/png, image/jpeg" hidden/>
                 </label>
               </div>
 
@@ -323,6 +323,7 @@
 <script>
 import axios from 'axios'
 import { ref, onMounted, onBeforeUnmount } from 'vue'
+import Swal from 'sweetalert2'
 
 export default {
   setup() {
@@ -364,17 +365,28 @@ export default {
     const confirmModal = ref({ show: false, message: '', onConfirm: null })
 
     const showToast = (msg, type = 'success') => {
-      toast.value = { show: true, message: msg, type }
-      setTimeout(() => { toast.value.show = false }, 3000)
+      Swal.fire(type === 'success' ? 'Thành công!' : (type === 'error' ? 'Lỗi!' : 'Thông báo'), msg, type)
     }
 
     const askConfirm = (msg, onConfirm) => {
-      confirmModal.value = { show: true, message: msg, onConfirm }
+      Swal.fire({
+        title: 'Xác nhận thao tác',
+        text: msg,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#3085d6',
+        cancelButtonColor: '#d33',
+        confirmButtonText: 'Đồng ý',
+        cancelButtonText: 'Hủy bỏ'
+      }).then((result) => {
+        if (result.isConfirmed && onConfirm) {
+          onConfirm()
+        }
+      })
     }
 
     const executeConfirm = () => {
-      if (confirmModal.value.onConfirm) confirmModal.value.onConfirm()
-      confirmModal.value.show = false
+      // Hàm này không còn dùng nữa do SweetAlert2 tự xử lý callback
     }
 
     const fetchUsers = async () => {
@@ -466,8 +478,13 @@ export default {
 
     const saveUser = async () => {
       // ---- VALIDATE ----
+      const nameRegex = /^[a-zA-ZÀÁÂÃÈÉÊÌÍÒÓÔÕÙÚĂĐĨŨƠàáâãèéêìíòóôõùúăđĩũơƯĂẠẢẤẦẨẪẬẮẰẲẴẶẸẺẼỀỀỂưăạảấầẩẫậắằẳẵặẹẻẽềềểỄỆỈỊỌỎỐỒỔỖỘỚỜỞỠỢỤỦỨỪễệỉịọỏốồổỗộớờởỡợụủứừỮỰỲỴÝỶỸửữựỳỵỷỹ\s0-9]+$/;
+
       if (!selectedUser.value.full_name?.trim()) {
-        return showToast("Full Name không được để trống", "error");
+        return showToast("Họ tên không được để trống", "error");
+      }
+      if (!nameRegex.test(selectedUser.value.full_name)) {
+        return showToast("Họ tên không được chứa ký tự đặc biệt (chống XSS)!", "error");
       }
       if (!selectedUser.value.phone?.trim()) {
         return showToast("Phone không được để trống", "error");
@@ -547,8 +564,14 @@ export default {
     const createAdmin = async () => {
           
       // ================= VALIDATION =================
+      const nameRegex = /^[a-zA-ZÀÁÂÃÈÉÊÌÍÒÓÔÕÙÚĂĐĨŨƠàáâãèéêìíòóôõùúăđĩũơƯĂẠẢẤẦẨẪẬẮẰẲẴẶẸẺẼỀỀỂưăạảấầẩẫậắằẳẵặẹẻẽềềểỄỆỈỊỌỎỐỒỔỖỘỚỜỞỠỢỤỦỨỪễệỉịọỏốồổỗộớờởỡợụủứừỮỰỲỴÝỶỸửữựỳỵỷỹ\s0-9]+$/;
+      const usernameRegex = /^[a-zA-Z0-9_]+$/;
+
       if (!newAdmin.value.username?.trim()) {
         return showToast("Username không được để trống", "error");
+      }
+      if (!usernameRegex.test(newAdmin.value.username)) {
+        return showToast("Username chỉ được chứa chữ cái, số và dấu gạch dưới (không có ký tự đặc biệt)", "error");
       }
 
       if (!newAdmin.value.email?.trim()) {
@@ -560,7 +583,10 @@ export default {
       }
 
       if (!newAdmin.value.full_name?.trim()) {
-        return showToast("Full name không được để trống", "error");
+        return showToast("Họ tên không được để trống", "error");
+      }
+      if (!nameRegex.test(newAdmin.value.full_name)) {
+        return showToast("Họ tên không được chứa ký tự đặc biệt!", "error");
       }
 
       if (!newAdmin.value.phone?.trim()) {
@@ -1087,7 +1113,7 @@ button:disabled {
   height: 100% !important;
   background: rgba(0,0,0,0.75) !important;
   backdrop-filter: blur(12px) !important;
-  z-index: 10000000 !important;
+  z-index: 1000 !important;
   display: flex !important; 
   align-items: center !important; 
   justify-content: center !important; 

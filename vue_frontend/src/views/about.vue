@@ -31,13 +31,7 @@
           </div>
           
           <div class="story-image">
-            <div class="image-placeholder">
-              <svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
-                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-                <line x1="3" y1="9" x2="21" y2="9"></line>
-                <line x1="9" y1="21" x2="9" y2="9"></line>
-              </svg>
-            </div>
+            <img src="https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&q=80&w=800" alt="Câu chuyện 22.Décembre" class="about-real-image" />
           </div>
         </div>
       </div>
@@ -53,13 +47,7 @@
 
         <div class="store-grid">
           <div class="store-image-box">
-            <div class="image-placeholder">
-              <svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
-                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-                <line x1="3" y1="9" x2="21" y2="9"></line>
-                <line x1="9" y1="21" x2="9" y2="9"></line>
-              </svg>
-            </div>
+            <img src="https://images.unsplash.com/photo-1567401893414-76b7b1e5a7a5?auto=format&fit=crop&q=80&w=800" alt="Không gian cửa hàng" class="about-real-image" />
           </div>
           <div class="store-info">
             <h3 class="store-title">TIỆM NHỎ TẠI TRUNG TỰ</h3>
@@ -533,5 +521,13 @@
   .store-title {
     font-size: 20px;
   }
+}
+</style>
+<style scoped>
+.about-real-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 4px;
 }
 </style>

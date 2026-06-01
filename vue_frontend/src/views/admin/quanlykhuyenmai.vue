@@ -143,7 +143,7 @@
               <div class="form-column">
                 <div class="form-group">
                   <label>Mã Code <span class="required">*</span></label>
-                  <input type="text" v-model="form.code" :class="{ 'error': errors.code }" placeholder="VD: SALE2025">
+                  <input type="text" v-model="form.code" :class="{ 'error': errors.code }" placeholder="VD: SALE2025" required>
                   <span class="error-msg">{{ errors.code?.[0] }}</span>
                 </div>
 
@@ -157,25 +157,25 @@
 
                 <div class="form-group">
                   <label>Giá trị giảm <span class="required">*</span></label>
-                  <input type="number" v-model="form.discount_value" :class="{ 'error': errors.discount_value }">
+                  <input type="number" v-model="form.discount_value" :class="{ 'error': errors.discount_value }" min="1" required>
                   <span class="error-msg">{{ errors.discount_value?.[0] }}</span>
                 </div>
 
                 <div class="form-group" v-if="form.discount_type === 'percent'">
                     <label>Giảm tối đa (Nếu là %)</label>
-                    <input type="number" v-model="form.max_discount">
+                    <input type="number" v-model="form.max_discount" min="0">
                 </div>
               </div>
 
               <div class="form-column">
                 <div class="form-group">
                   <label>Đơn tối thiểu</label>
-                  <input type="number" v-model="form.min_order_value">
+                  <input type="number" v-model="form.min_order_value" min="0">
                 </div>
 
                 <div class="form-group">
                   <label>Giới hạn số lần dùng</label>
-                  <input type="number" v-model="form.usage_limit" placeholder="Để trống nếu không giới hạn">
+                  <input type="number" v-model="form.usage_limit" placeholder="Để trống nếu không giới hạn" min="1">
                 </div>
 
                 <div class="form-row">
@@ -185,8 +185,8 @@
                         <span class="error-msg">{{ errors.start_date?.[0] }}</span>
                     </div>
                     <div class="form-group half">
-                        <label>Ngày kết thúc</label>
-                        <input type="datetime-local" v-model="form.end_date" :class="{ 'error': errors.end_date }">
+                        <label>Ngày kết thúc <span class="required">*</span></label>
+                        <input type="datetime-local" v-model="form.end_date" :class="{ 'error': errors.end_date }" required>
                          <span class="error-msg">{{ errors.end_date?.[0] }}</span>
                     </div>
                 </div>
@@ -215,28 +215,6 @@
           </form>
         </div>
       </div>
-    <!-- Modal Xác nhận xóa -->
-    <div v-if="showDeleteModal" class="modal-overlay">
-      <div class="modal-content small">
-        <div class="modal-header danger">
-          <h5>Xác Nhận Xóa</h5>
-          <button type="button" class="close-btn" @click="showDeleteModal = false">×</button>
-        </div>
-        <div class="modal-body centered-content">
-          <div class="warning-icon">
-            <i class="fas fa-exclamation-triangle"></i>
-          </div>
-          <p>Bạn có chắc chắn muốn xóa mã giảm giá này không?</p>
-          <small class="text-light">Hành động này không thể hoàn tác.</small>
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn-action secondary" @click="showDeleteModal = false">Hủy</button>
-          <button type="button" class="btn-action delete-confirm" @click="confirmDelete" :disabled="isSubmitting">
-            {{ isSubmitting ? 'Đang xóa...' : 'Đồng ý xóa' }}
-          </button>
-        </div>
-      </div>
-    </div>
     </div>
   </div>
 </template>
@@ -244,6 +222,7 @@
 <script setup>
 import { ref, reactive, onMounted, nextTick } from 'vue';
 import axios from 'axios';
+import Swal from 'sweetalert2';
 
 // --- CONFIG ---
 // Đảm bảo đường dẫn này đúng với route trong routes/api.php
@@ -255,8 +234,6 @@ const loading = ref(false);
 const showModal = ref(false);
 const isEditing = ref(false);
 const isSubmitting = ref(false);
-const showDeleteModal = ref(false);
-const couponToDeleteId = ref(null);
 const pagination = ref({
     current_page: 1,
     last_page: 1,
@@ -315,7 +292,7 @@ const fetchCoupons = async (page = 1) => {
         };
     } catch (error) {
         console.error(error);
-        showAlert('Không thể tải dữ liệu', 'error');
+        Swal.fire('Lỗi', 'Không thể tải dữ liệu', 'error');
     } finally {
         loading.value = false;
     }
@@ -361,61 +338,85 @@ const closeModal = () => {
 
 // 3. Lưu
 const saveCoupon = async () => {
+    errors.value = {};
+
+    // Validate phía Client (Double Validation)
+    if (!form.code || form.code.trim() === '') {
+        Swal.fire('Lỗi!', 'Vui lòng nhập Mã Code', 'error');
+        return;
+    }
+    
+    if (form.discount_value <= 0) {
+        Swal.fire('Lỗi!', 'Giá trị giảm phải lớn hơn 0', 'error');
+        return;
+    }
+    
+    if (form.discount_type === 'percent' && form.discount_value > 100) {
+        Swal.fire('Lỗi!', 'Giá trị giảm theo phần trăm không được vượt quá 100%', 'error');
+        return;
+    }
+
+    if (form.end_date && form.start_date && new Date(form.end_date) <= new Date(form.start_date)) {
+        Swal.fire('Lỗi!', 'Ngày kết thúc phải sau ngày bắt đầu', 'error');
+        return;
+    }
+
     // Xóa giá trị giảm tối đa nếu không phải là giảm theo %
     if (form.discount_type === 'fixed') {
         form.max_discount = null;
     }
 
+    isSubmitting.value = true;
     try {
         let response;
         if (isEditing.value) {
             response = await axios.post(`${API_URL}/${form.id}`, {
-        ...form,        // Lấy toàn bộ dữ liệu đang có trong form
-        _method: 'PUT'  // Thêm dòng này để Laravel hiểu là update
-    });
+                ...form,
+                _method: 'PUT'
+            });
         } else {
             response = await axios.post(API_URL, form);
         }
 
-        showAlert(response.data.message, 'success');
+        Swal.fire('Thành công!', response.data.message || 'Đã lưu mã khuyến mại.', 'success');
         closeModal();
         fetchCoupons(pagination.value.current_page); 
 
     } catch (error) {
         if (error.response && error.response.status === 422) {
             errors.value = error.response.data.errors;
+            Swal.fire('Lỗi dữ liệu!', 'Vui lòng kiểm tra lại thông tin đã nhập.', 'warning');
         } else {
-            showAlert('Có lỗi xảy ra, vui lòng thử lại.', 'error');
+            Swal.fire('Lỗi!', 'Có lỗi xảy ra, vui lòng thử lại.', 'error');
         }
     } finally {
         isSubmitting.value = false;
     }
 };
 
-// 4. Xóa
+// 4. Xóa (Sử dụng SweetAlert2)
 const deleteCoupon = (id) => {
-    couponToDeleteId.value = id;
-    showDeleteModal.value = true;
-};
-
-const confirmDelete = async () => {
-    if (!couponToDeleteId.value) return;
-    
-    isSubmitting.value = true;
-    try {
-        await axios.post(`${API_URL}/${couponToDeleteId.value}`, {
-            _method: 'DELETE'
-        });
-        showAlert('Đã xóa mã giảm giá.', 'success');
-        fetchCoupons(pagination.value.current_page);
-        showDeleteModal.value = false;
-    } catch (error) {
-        const msg = error.response?.data?.message || 'Không thể xóa.';
-        showAlert(msg, 'error');
-    } finally {
-        isSubmitting.value = false;
-        couponToDeleteId.value = null;
-    }
+    Swal.fire({
+        title: 'Bạn có chắc chắn?',
+        text: "Hành động này không thể hoàn tác!",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#3085d6',
+        confirmButtonText: 'Đồng ý xóa!',
+        cancelButtonText: 'Hủy'
+    }).then(async (result) => {
+        if (result.isConfirmed) {
+            try {
+                await axios.post(`${API_URL}/${id}`, { _method: 'DELETE' });
+                Swal.fire('Đã xóa!', 'Mã giảm giá đã được xóa thành công.', 'success');
+                fetchCoupons(pagination.value.current_page);
+            } catch (error) {
+                const msg = error.response?.data?.message || 'Không thể xóa.';
+                Swal.fire('Lỗi!', msg, 'error');
+            }
+        }
+    });
 };
 
 const resetForm = () => {
@@ -440,14 +441,6 @@ const formatDate = (dateString) => {
     const hours = String(date.getHours()).padStart(2, '0');
     const minutes = String(date.getMinutes()).padStart(2, '0');
     return `${month}/${day}/${year} ${hours}:${minutes}`;
-};
-
-let alertTimeout = null;
-const showAlert = (msg, type) => {
-    alert.message = msg;
-    alert.type = type;
-    if (alertTimeout) clearTimeout(alertTimeout);
-    alertTimeout = setTimeout(() => { alert.message = ''; }, 3000);
 };
 
 onMounted(() => {
