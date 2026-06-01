@@ -13,6 +13,9 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        // Tin tưởng tất cả các proxy (Render Load Balancer) để Laravel tự động dùng HTTPS
+        $middleware->trustProxies(at: '*');
+
         // Gán middleware cho prefix 'admin'
         $middleware->alias([
             'staff' => \App\Http\Middleware\StaffMiddleware::class,
