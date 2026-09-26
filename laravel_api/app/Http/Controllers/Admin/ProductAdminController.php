@@ -61,8 +61,16 @@ class ProductAdminController extends Controller
         // Sử dụng Transaction để đảm bảo tính toàn vẹn dữ liệu
         return DB::transaction(function () use ($data, $variants) {
             // Tạo slug & SKU nếu chưa có
-            $data['slug'] = Str::slug($data['name']);
-            $data['sku']  = $data['sku'] ?? strtoupper(Str::random(8));
+            $baseSlug = Str::slug($data['name']);
+            $slug = $baseSlug;
+            $counter = 1;
+            while (DB::table('products')->where('slug', $slug)->exists()) {
+                $slug = $baseSlug . '-' . $counter;
+                $counter++;
+            }
+            $data['slug'] = $slug;
+            
+            $data['sku']  = !empty($data['sku']) ? $data['sku'] : strtoupper(Str::random(8));
 
             // Nếu không có cost_price thì cho = price
             if (!isset($data['cost_price']) || $data['cost_price'] === null) {
@@ -85,7 +93,7 @@ class ProductAdminController extends Controller
             foreach ($variants as $variant) {
                 $product->variants()->create([
                     'variant_attributes' => $variant['variant_attributes'] ?? [],
-                    'sku'                => $variant['sku'] ?? null,
+                    'sku'                => !empty($variant['sku']) ? $variant['sku'] : null,
                     'quantity'           => $variant['quantity'] ?? 0,
                     'additional_price'   => $variant['additional_price'] ?? 0,
                 ]);
@@ -120,7 +128,14 @@ class ProductAdminController extends Controller
         unset($data['variants']);
 
         return DB::transaction(function () use ($product, $data, $variants) {
-            $data['slug'] = Str::slug($data['name']);
+            $baseSlug = Str::slug($data['name']);
+            $slug = $baseSlug;
+            $counter = 1;
+            while (DB::table('products')->where('slug', $slug)->where('id', '!=', $product->id)->exists()) {
+                $slug = $baseSlug . '-' . $counter;
+                $counter++;
+            }
+            $data['slug'] = $slug;
 
             // Giữ SKU gốc, không cho sửa trong form này
             unset($data['sku']);
@@ -151,7 +166,7 @@ class ProductAdminController extends Controller
             foreach ($variants as $variant) {
                 $product->variants()->create([
                     'variant_attributes' => $variant['variant_attributes'] ?? [],
-                    'sku'                => $variant['sku'] ?? null,
+                    'sku'                => !empty($variant['sku']) ? $variant['sku'] : null,
                     'quantity'           => $variant['quantity'] ?? 0,
                     'additional_price'   => $variant['additional_price'] ?? 0,
                 ]);

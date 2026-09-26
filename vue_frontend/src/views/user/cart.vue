@@ -138,9 +138,13 @@
 
           <small v-if="couponMessage" :class="{'text-success': discountAmount > 0, 'text-danger': discountAmount === 0}">{{ couponMessage }}</small>
         </div>
+        <div class="summary-row" v-if="autoDiscountAmount > 0">
+          <span>Ưu đãi mua sỉ (10+ SP):</span>
+          <span class="text-success">-{{ formatCurrency(autoDiscountAmount) }}</span>
+        </div>
         <div class="summary-row" v-if="discountAmount > 0">
-          <span>Khuyến mại:</span>
-          <span>-{{ formatCurrency(discountAmount) }}</span>
+          <span>Mã khuyến mại:</span>
+          <span class="text-success">-{{ formatCurrency(discountAmount) }}</span>
         </div>
         <div class="summary-row total-row">
           <span>Tổng thanh toán:</span>
@@ -436,8 +440,16 @@ const clientTotal = computed(() => {
   }, 0);
 });
 
+const totalQuantity = computed(() => {
+  return cartItems.value.reduce((total, item) => total + item.quantity, 0);
+});
+
+const autoDiscountAmount = computed(() => {
+  return totalQuantity.value >= 10 ? clientTotal.value * 0.10 : 0;
+});
+
 const finalTotal = computed(() => {
-  return Math.max(0, clientTotal.value - discountAmount.value);
+  return Math.max(0, clientTotal.value - discountAmount.value - autoDiscountAmount.value);
 });
 
 watch(clientTotal, () => {

@@ -135,6 +135,7 @@ class CheckoutController extends Controller
 
             // 3. Xử lý Logic Lọc Dần & Trừ Kho
             $subtotal = 0;
+            $totalQuantity = 0;
             $orderItemsData = [];
 
             foreach ($validatedData['items'] as $item) {
@@ -170,6 +171,7 @@ class CheckoutController extends Controller
 
                 $lineTotal = $finalPrice * $item['quantity'];
                 $subtotal += $lineTotal;
+                $totalQuantity += $item['quantity'];
 
                 $orderItemsData[] = [
                     'product_id'    => $product->id,
@@ -186,6 +188,11 @@ class CheckoutController extends Controller
             // --- BẮT ĐẦU LOGIC KHUYẾN MẠI ---
             $discountAmount = 0;
             $couponIdApplied = null; // Để lưu lại ID coupon đã dùng
+            
+            // Ưu đãi: Mua từ 10 sản phẩm trở lên giảm 10%
+            if ($totalQuantity >= 10) {
+                $discountAmount += $subtotal * 0.10;
+            }
 
             if (!empty($request->coupon_code)) {
                 // Lock coupon để tránh race condition (nhiều người dùng mã cuối cùng cùng lúc)
@@ -230,15 +237,18 @@ class CheckoutController extends Controller
                 }
 
                 // E. Tính toán số tiền giảm
+                $couponDiscount = 0;
                 if ($coupon->discount_type === 'fixed') {
-                    $discountAmount = $coupon->discount_value;
+                    $couponDiscount = $coupon->discount_value;
                 } elseif ($coupon->discount_type === 'percent') {
-                    $discountAmount = $subtotal * ($coupon->discount_value / 100);
+                    $couponDiscount = $subtotal * ($coupon->discount_value / 100);
                     // Áp dụng mức giảm tối đa (nếu có)
                     if ($coupon->max_discount > 0) {
-                        $discountAmount = min($discountAmount, $coupon->max_discount);
+                        $couponDiscount = min($couponDiscount, $coupon->max_discount);
                     }
                 }
+                
+                $discountAmount += $couponDiscount;
 
                 // Đảm bảo không giảm quá giá trị đơn hàng
                 $discountAmount = min($discountAmount, $subtotal);
