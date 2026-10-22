@@ -1,7 +1,7 @@
 # ============================================
 # STAGE 1: Build VueJS (Giữ nguyên không đổi)
 # ============================================
-FROM node:20-alpine AS vue_builder
+FROM node:22.23.4-alpine AS vue_builder
 WORKDIR /app/frontend
 COPY vue_frontend/package*.json ./
 RUN npm install
@@ -12,7 +12,7 @@ RUN npm run build
 # STAGE 2: Build Laravel với Nginx + PHP-FPM
 # ============================================
 # 1. ĐỔI IMAGE GỐC: Dùng FPM thay vì Apache
-FROM php:8.2-fpm
+FROM php:8.2.35-fpm
 
 WORKDIR /var/www/html
 
