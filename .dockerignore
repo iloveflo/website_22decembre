@@ -1,0 +1,93 @@
+# ==============================================================================
+# .dockerignore - Tối ưu hóa Build Context cho dự án Fullstack (Laravel + Vue)
+# Giảm dung lượng build context, tăng tốc độ build và bảo mật thông tin nhạy cảm.
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# 1. Hệ thống quản lý mã nguồn (VCS) & Metadata
+# ------------------------------------------------------------------------------
+.git/
+.gitignore
+.gitattributes
+.github/
+
+# ------------------------------------------------------------------------------
+# 2. File cấu hình Docker & Database Init (Không cần gửi vào build context)
+# ------------------------------------------------------------------------------
+docker-compose*.yml
+docker-compose*.yaml
+.dockerignore
+init.sql
+
+# ------------------------------------------------------------------------------
+# 3. Môi trường & Bí mật bảo mật (QUAN TRỌNG: Tránh rò rỉ secret vào Docker image)
+# ------------------------------------------------------------------------------
+**/.env
+**/.env.*
+!**/.env.example
+auth.json
+**/*.key
+
+# ------------------------------------------------------------------------------
+# 4. Thư viện phụ thuộc (Dependencies - Docker sẽ tự cài đặt độc lập)
+# ------------------------------------------------------------------------------
+**/node_modules/
+**/vendor/
+
+# ------------------------------------------------------------------------------
+# 5. Frontend (Vue.js / Vite) Build Cache & Artifacts
+# ------------------------------------------------------------------------------
+vue_frontend/dist/
+vue_frontend/frontend/
+**/npm-debug.log*
+**/yarn-debug.log*
+**/yarn-error.log*
+**/pnpm-debug.log*
+
+# ------------------------------------------------------------------------------
+# 6. Backend (Laravel) Cache, Logs, Sessions & Tests
+# ------------------------------------------------------------------------------
+# Logs & Logs debug
+**/*.log
+laravel_api/storage/logs/*
+!laravel_api/storage/logs/.gitkeep
+
+# Caches & Sessions cục bộ
+laravel_api/storage/framework/cache/data/*
+!laravel_api/storage/framework/cache/data/.gitkeep
+laravel_api/storage/framework/sessions/*
+!laravel_api/storage/framework/sessions/.gitkeep
+laravel_api/storage/framework/views/*
+!laravel_api/storage/framework/views/.gitkeep
+laravel_api/storage/framework/testing/*
+!laravel_api/storage/framework/testing/.gitkeep
+laravel_api/storage/pail/
+
+# Symlink & Vite dev server files của Laravel
+laravel_api/public/hot
+laravel_api/public/storage
+
+# PHPUnit & Test caches
+**/.phpunit.result.cache
+**/.phpunit.cache
+
+# ------------------------------------------------------------------------------
+# 7. IDE, Trình soạn thảo & Hệ điều hành
+# ------------------------------------------------------------------------------
+.idea/
+.vscode/
+.serena/
+.fleet/
+.nova/
+.zed/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# ------------------------------------------------------------------------------
+# 8. Tài liệu dự án (Không cần trong production container)
+# ------------------------------------------------------------------------------
+**/*.md
